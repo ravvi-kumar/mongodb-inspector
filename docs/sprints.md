@@ -15,8 +15,8 @@
 - [x] Chi HTTP server with health endpoint
 - [x] Entrypoint (cmd/server/main.go)
 - [x] Makefile + .env.example
-- [ ] Build compiles cleanly
-- [ ] Health endpoint verified
+- [x] Build compiles cleanly
+- [x] Health endpoint verified
 
 ### Blockers
 - (none yet)
