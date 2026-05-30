@@ -24,12 +24,14 @@ const scalarHTML = `<!DOCTYPE html>
 type Server struct {
 	router            chi.Router
 	connectionHandler *ConnectionHandler
+	scanHandler       *ScanHandler
 	swaggerJSON       json.RawMessage
 }
 
-func NewServer(connectionHandler *ConnectionHandler, swaggerJSON json.RawMessage) *Server {
+func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, swaggerJSON json.RawMessage) *Server {
 	s := &Server{
 		connectionHandler: connectionHandler,
+		scanHandler:       scanHandler,
 		swaggerJSON:       swaggerJSON,
 	}
 
@@ -48,6 +50,10 @@ func NewServer(connectionHandler *ConnectionHandler, swaggerJSON json.RawMessage
 
 	r.Route("/api/connections", func(r chi.Router) {
 		r.Mount("/", s.connectionHandler.Routes())
+	})
+
+	r.Route("/api/scans", func(r chi.Router) {
+		r.Mount("/", s.scanHandler.Routes())
 	})
 
 	s.router = r

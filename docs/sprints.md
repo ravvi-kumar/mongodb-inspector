@@ -50,15 +50,18 @@
 
 ## Sprint 3: Collection Scanner
 
-**Status:** Not Started
+**Status:** Complete
 **Goal:** Sample documents, extract fields, detect candidate relationships
 
 ### Checklist
-- [ ] Sample N documents from each collection
-- [ ] Extract top-level field names, types, sample values
-- [ ] Store in collection_fields table
-- [ ] Candidate field detection heuristics
-- [ ] Async scan with status polling
+- [x] Sample N documents from each collection (configurable, default 1000)
+- [x] Extract top-level field names, types, sample values
+- [x] Store in collection_fields table
+- [x] Candidate field detection heuristics (Id/_id suffix, Ref suffix, By suffix, common names, ObjectId type, hex string patterns)
+- [x] Async scan with status polling (goroutine worker)
+- [x] Scan HTTP handlers (start, list, get, fields, candidates)
+- [x] OpenAPI spec updated with scan endpoints
+- [x] Build + vet clean
 
 ### Blockers
 - (none)

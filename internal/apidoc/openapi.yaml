@@ -204,6 +204,123 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/scans:
+    get:
+      summary: List scans for a connection
+      tags: [scans]
+      parameters:
+        - name: connection_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of scans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scan"
+    post:
+      summary: Start a new scan
+      description: >
+        Starts an async collection scan. The scan samples documents from each collection,
+        extracts field info, and detects candidate relationship fields.
+        Returns immediately with status "pending".
+      tags: [scans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartScanRequest"
+      responses:
+        "202":
+          description: Scan created and queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/scans/{id}:
+    get:
+      summary: Get scan status
+      tags: [scans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Scan details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Scan"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/scans/{id}/fields:
+    get:
+      summary: Get all fields discovered in a scan
+      tags: [scans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of collection fields
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollectionField"
+
+  /api/scans/{id}/candidates:
+    get:
+      summary: Get candidate relationship fields
+      description: >
+        Returns only fields that look like they reference other collections
+        (e.g., userId, orderId, fields with ObjectId type, etc.)
+      tags: [scans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of candidate fields
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CollectionField"
+
 components:
   parameters:
     ConnectionID:
@@ -256,6 +373,83 @@ components:
         database:
           type: string
           example: myapp
+
+    StartScanRequest:
+      type: object
+      required: [connection_id]
+      properties:
+        connection_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        sample_size:
+          type: integer
+          example: 1000
+          description: Number of documents to sample per collection (default 1000)
+
+    Scan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+          example: completed
+        sample_size:
+          type: integer
+          example: 1000
+        error:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    CollectionField:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        scan_id:
+          type: string
+          format: uuid
+        collection_name:
+          type: string
+          example: orders
+        field_name:
+          type: string
+          example: userId
+        field_type:
+          type: string
+          example: string
+        sample_values:
+          type: array
+          items: {}
+          example: ["usr_1", "usr_2", "usr_3"]
+        is_candidate:
+          type: boolean
+          example: true
+        candidate_reason:
+          type: string
+          nullable: true
+          example: "field name ends with Id/_id"
+        document_count:
+          type: integer
+          example: 1500
 
     Error:
       type: object

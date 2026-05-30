@@ -18,7 +18,9 @@ import (
 	"github.com/ravikumar/mongodb-inspector/internal/config"
 	httpserver "github.com/ravikumar/mongodb-inspector/internal/http"
 	"github.com/ravikumar/mongodb-inspector/internal/migrations"
+	"github.com/ravikumar/mongodb-inspector/internal/service"
 	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
+	"github.com/ravikumar/mongodb-inspector/internal/worker"
 )
 
 func loadSwaggerJSON() json.RawMessage {
@@ -56,8 +58,16 @@ func main() {
 	swaggerJSON := loadSwaggerJSON()
 
 	connStore := pg.NewConnectionStore(store.DB())
+	scanStore := pg.NewScanStore(store.DB())
+
+	scannerSvc := service.NewScannerService(scanStore, connStore)
+	scannerWorker := worker.NewScannerWorker(scannerSvc)
+	scannerWorker.Start()
+	defer scannerWorker.Stop()
+
 	connHandler := httpserver.NewConnectionHandler(connStore)
-	srv := httpserver.NewServer(connHandler, swaggerJSON)
+	scanHandler := httpserver.NewScanHandler(scannerSvc, scannerWorker)
+	srv := httpserver.NewServer(connHandler, scanHandler, swaggerJSON)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
