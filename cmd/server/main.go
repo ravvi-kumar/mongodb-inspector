@@ -38,7 +38,10 @@ func main() {
 		log.Fatalf("migrations error: %v", err)
 	}
 
-	srv := httpserver.NewServer()
+	connStore := pg.NewConnectionStore(store.DB())
+	connHandler := httpserver.NewConnectionHandler(connStore)
+
+	srv := httpserver.NewServer(connHandler)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

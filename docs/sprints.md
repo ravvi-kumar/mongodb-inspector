@@ -4,7 +4,7 @@
 
 ## Sprint 1: Foundation
 
-**Status:** In Progress
+**Status:** Complete
 **Goal:** Project skeleton, PG store, migrations, health endpoint
 
 ### Checklist
@@ -19,7 +19,7 @@
 - [x] Health endpoint verified
 
 ### Blockers
-- (none yet)
+- (none)
 
 ### Notes for Next Sprint
 - Sprint 2: MongoDB connector (connect, list databases, list collections, select DB)
@@ -28,14 +28,15 @@
 
 ## Sprint 2: MongoDB Connector
 
-**Status:** Not Started
+**Status:** Complete
 **Goal:** Connect to MongoDB, list databases/collections, select database
 
 ### Checklist
-- [ ] MongoDB connection CRUD in PG store
-- [ ] List databases endpoint
-- [ ] List collections endpoint
-- [ ] Select database endpoint
+- [x] MongoDB connection CRUD in PG store
+- [x] MongoDB connector (connect, list DBs, list collections)
+- [x] Connection HTTP handlers (CRUD + databases + select-db + collections)
+- [x] Routes wired in server.go
+- [x] Build compiles + vet passes
 
 ### Blockers
 - (none)
