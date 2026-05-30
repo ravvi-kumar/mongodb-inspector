@@ -73,14 +73,17 @@
 
 ## Sprint 4: Relationship Discovery
 
-**Status:** Not Started
+**Status:** Complete
 **Goal:** Match candidate values against _id fields, calculate confidence
 
 ### Checklist
-- [ ] Value matching against _id of other collections
-- [ ] Confidence calculation (matched / sampled)
-- [ ] 50% threshold filter
-- [ ] Store suggested relationships
+- [x] Value matching against _id of other collections
+- [x] Confidence calculation (matched / sampled)
+- [x] 50% threshold filter
+- [x] Store suggested relationships
+- [x] Relationship CRUD + approve/reject
+- [x] OpenAPI spec updated
+- [x] Build + vet clean
 
 ### Blockers
 - (none)

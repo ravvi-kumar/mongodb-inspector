@@ -321,6 +321,150 @@ paths:
                 items:
                   $ref: "#/components/schemas/CollectionField"
 
+  /api/relationships:
+    get:
+      summary: List discovered relationships
+      tags: [relationships]
+      parameters:
+        - name: connection_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Filter by status (suggested, approved, rejected)
+          schema:
+            type: string
+            enum: [suggested, approved, rejected]
+      responses:
+        "200":
+          description: List of relationships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Relationship"
+
+  /api/relationships/discover:
+    post:
+      summary: Run relationship discovery
+      description: >
+        Takes a scan ID and discovers relationships by matching candidate field values
+        against _id fields of other collections. Returns suggested relationships
+        with confidence scores >= 50%.
+      tags: [relationships]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scan_id]
+              properties:
+                scan_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Discovery complete, returns suggested relationships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Relationship"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Discovery failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/relationships/{id}:
+    get:
+      summary: Get a relationship
+      tags: [relationships]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Relationship details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/relationships/{id}/approve:
+    post:
+      summary: Approve a suggested relationship
+      tags: [relationships]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Relationship approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/relationships/{id}/reject:
+    post:
+      summary: Reject a suggested relationship
+      tags: [relationships]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Relationship rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Relationship"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   parameters:
     ConnectionID:
@@ -450,6 +594,49 @@ components:
         document_count:
           type: integer
           example: 1500
+
+    Relationship:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        connection_id:
+          type: string
+          format: uuid
+        source_collection:
+          type: string
+          example: orders
+        source_field:
+          type: string
+          example: userId
+        target_collection:
+          type: string
+          example: users
+        target_field:
+          type: string
+          example: _id
+        confidence:
+          type: number
+          format: double
+          example: 0.987
+          description: Match confidence (0.0 to 1.0)
+        matched_values:
+          type: integer
+          example: 987
+        sampled_values:
+          type: integer
+          example: 1000
+        status:
+          type: string
+          enum: [suggested, approved, rejected]
+          example: suggested
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     Error:
       type: object

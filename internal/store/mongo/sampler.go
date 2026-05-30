@@ -72,6 +72,8 @@ func SampleCollection(ctx context.Context, db *mongo.Database, collectionName st
 	}, nil
 }
 
+const maxSampleValuesPerField = 200
+
 type fieldAccum struct {
 	name        string
 	occurrences int
@@ -87,14 +89,14 @@ func extractFields(docs []bson.M) []FieldInfo {
 				fieldMap[key] = &fieldAccum{
 					name:   key,
 					types:  make(map[string]int),
-					values: make([]any, 0, 10),
+					values: make([]any, 0, maxSampleValuesPerField),
 				}
 			}
 			f := fieldMap[key]
 			f.occurrences++
 			typeName := bsonTypeName(val)
 			f.types[typeName]++
-			if len(f.values) < 10 {
+			if len(f.values) < maxSampleValuesPerField {
 				f.values = append(f.values, val)
 			}
 		}
