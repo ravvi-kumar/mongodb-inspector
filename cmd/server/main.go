@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,12 +12,26 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
 
+	"github.com/ravikumar/mongodb-inspector/internal/apidoc"
 	"github.com/ravikumar/mongodb-inspector/internal/config"
 	httpserver "github.com/ravikumar/mongodb-inspector/internal/http"
 	"github.com/ravikumar/mongodb-inspector/internal/migrations"
 	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
 )
+
+func loadSwaggerJSON() json.RawMessage {
+	var raw any
+	if err := yaml.Unmarshal(apidoc.OpenAPIYAML, &raw); err != nil {
+		log.Fatalf("parse openapi.yaml: %v", err)
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		log.Fatalf("marshal openapi json: %v", err)
+	}
+	return data
+}
 
 func main() {
 	_ = godotenv.Load()
@@ -38,10 +53,11 @@ func main() {
 		log.Fatalf("migrations error: %v", err)
 	}
 
+	swaggerJSON := loadSwaggerJSON()
+
 	connStore := pg.NewConnectionStore(store.DB())
 	connHandler := httpserver.NewConnectionHandler(connStore)
-
-	srv := httpserver.NewServer(connHandler)
+	srv := httpserver.NewServer(connHandler, swaggerJSON)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

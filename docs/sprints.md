@@ -36,6 +36,8 @@
 - [x] MongoDB connector (connect, list DBs, list collections)
 - [x] Connection HTTP handlers (CRUD + databases + select-db + collections)
 - [x] Routes wired in server.go
+- [x] Connection string validation on create (pings MongoDB before saving)
+- [x] Scaler/OpenAPI docs (served at /docs and /docs/json)
 - [x] Build compiles + vet passes
 
 ### Blockers

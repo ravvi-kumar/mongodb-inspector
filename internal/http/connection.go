@@ -34,7 +34,7 @@ func (h *ConnectionHandler) Routes() chi.Router {
 }
 
 type createConnectionRequest struct {
-	Name           string `json:"name"`
+	Name             string `json:"name"`
 	ConnectionString string `json:"connection_string"`
 }
 
@@ -50,8 +50,15 @@ func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mongoConn, err := mongostore.NewConnector(r.Context(), req.ConnectionString)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "cannot connect to MongoDB: "+err.Error())
+		return
+	}
+	mongoConn.Close(context.Background())
+
 	conn := &domain.Connection{
-		Name:           req.Name,
+		Name:             req.Name,
 		ConnectionString: req.ConnectionString,
 	}
 

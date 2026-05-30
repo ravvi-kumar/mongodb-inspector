@@ -8,14 +8,29 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+const scalarHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <title>MongoDB Investigation Engine - API Docs</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+  <script id="api-reference" data-url="/docs/json"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`
+
 type Server struct {
-	router             chi.Router
-	connectionHandler  *ConnectionHandler
+	router            chi.Router
+	connectionHandler *ConnectionHandler
+	swaggerJSON       json.RawMessage
 }
 
-func NewServer(connectionHandler *ConnectionHandler) *Server {
+func NewServer(connectionHandler *ConnectionHandler, swaggerJSON json.RawMessage) *Server {
 	s := &Server{
 		connectionHandler: connectionHandler,
+		swaggerJSON:       swaggerJSON,
 	}
 
 	r := chi.NewRouter()
@@ -28,6 +43,9 @@ func NewServer(connectionHandler *ConnectionHandler) *Server {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 
+	r.Get("/docs", s.scalarUI)
+	r.Get("/docs/json", s.swaggerJSONHandler)
+
 	r.Route("/api/connections", func(r chi.Router) {
 		r.Mount("/", s.connectionHandler.Routes())
 	})
@@ -38,6 +56,16 @@ func NewServer(connectionHandler *ConnectionHandler) *Server {
 
 func (s *Server) Router() chi.Router {
 	return s.router
+}
+
+func (s *Server) scalarUI(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(scalarHTML))
+}
+
+func (s *Server) swaggerJSONHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(s.swaggerJSON)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

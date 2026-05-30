@@ -1,0 +1,264 @@
+openapi: 3.1.0
+info:
+  title: MongoDB Investigation Engine API
+  description: >
+    API for discovering MongoDB collection relationships, tracing documents,
+    and detecting orphan records.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [system]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /api/connections:
+    get:
+      summary: List all connections
+      tags: [connections]
+      responses:
+        "200":
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Connection"
+    post:
+      summary: Create a MongoDB connection
+      description: >
+        Validates the connection string by connecting to MongoDB before saving.
+        Returns 400 if the connection cannot be established.
+      tags: [connections]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConnectionRequest"
+      responses:
+        "201":
+          description: Connection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "400":
+          description: Invalid request or connection failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/connections/{id}:
+    get:
+      summary: Get a connection by ID
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: Connection details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete a connection
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/connections/{id}/databases:
+    get:
+      summary: List MongoDB databases
+      description: >
+        Connects to MongoDB and lists available databases.
+        Excludes system databases (admin, local, config).
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: List of database names
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  databases:
+                    type: array
+                    items:
+                      type: string
+                    example: [myapp, analytics, staging]
+        "400":
+          description: Cannot connect to MongoDB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/connections/{id}/select-db:
+    post:
+      summary: Select a database for a connection
+      description: >
+        Sets the active database for a connection. Must be called before
+        listing collections or running scans.
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectDBRequest"
+      responses:
+        "200":
+          description: Database selected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/connections/{id}/collections:
+    get:
+      summary: List collections in selected database
+      description: >
+        Returns all collections in the selected database.
+        A database must be selected first via the select-db endpoint.
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: List of collection names
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      type: string
+                    example: [users, orders, payments, subscriptions]
+        "400":
+          description: No database selected or cannot connect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  parameters:
+    ConnectionID:
+      name: id
+      in: path
+      required: true
+      description: Connection ID (UUID)
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: my-mongo
+        connection_string:
+          type: string
+          example: mongodb://localhost:27017
+        database:
+          type: string
+          example: myapp
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateConnectionRequest:
+      type: object
+      required: [name, connection_string]
+      properties:
+        name:
+          type: string
+          example: my-mongo
+        connection_string:
+          type: string
+          example: mongodb://localhost:27017
+
+    SelectDBRequest:
+      type: object
+      required: [database]
+      properties:
+        database:
+          type: string
+          example: myapp
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
