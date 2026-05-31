@@ -180,3 +180,183 @@
 | 11 | Discovery queries MongoDB directly (not stored samples) | Stored samples had unreliable overlap; direct query gives accurate confidence | 2026-05-31 |
 
 All 7 sprints now complete. The full pipeline is: create connection → scan → discover relationships → approve/reject → investigate documents → detect orphans.
+
+---
+
+## Sprint 8: Test Foundation
+
+**Status:** Pending
+**Goal:** Unit + integration tests for all existing services. Zero tests = zero safety for future changes.
+
+### Why This Sprint
+7 sprints, 0 test files. Every future sprint will modify discovery/scan/investigation. Without tests, any change could silently break the pipeline. This is the highest-risk gap in the project.
+
+### Checklist
+- [ ] Unit tests for `internal/scanner/candidate.go` (all heuristics + edge cases)
+- [ ] Unit tests for `internal/service/discovery.go` (confidence calc, threshold, auto-approve, ObjectID conversion)
+- [ ] Unit tests for `internal/service/investigation.go` (traversal depth, cycle detection, bidirectional)
+- [ ] Unit tests for `internal/service/orphan.go` (orphan detection, existing vs missing)
+- [ ] Unit tests for `internal/store/mongo/sampler.go` (field extraction, type detection, nested values)
+- [ ] HTTP handler tests for each endpoint group (connection, scan, relationship, investigation, orphan)
+- [ ] Integration test scaffold: docker-compose test DB, seed script, full pipeline test
+- [ ] `make test` target in Makefile
+- [ ] Fix any bugs found during testing
+
+### Blockers
+- (none)
+
+---
+
+## Sprint 9: Discovery V2 — Explain Why + Multi-Signal
+
+**Status:** Pending
+**Goal:** Make discovery smarter and trustworthy. Add explanation for every suggested relationship. Support non-_id target fields.
+
+### Why This Sprint
+Current discovery only checks value overlap against `_id`. If a field is named `customer` (not `customerId`), it relies on a hardcoded common names list. Developers won't trust a "Relationship Found" without knowing why. The "explain" feature is the trust builder.
+
+### Checklist
+- [ ] Add `explanation` field to `Relationship` domain model + migration
+- [ ] Generate human-readable explanation for each discovery:
+  - How many values matched out of how many sampled
+  - What the field type is
+  - Whether naming patterns contributed
+  - Whether any competing collection scored lower
+- [ ] Support non-`_id` target fields (e.g., `users.email`, `orders.orderNumber`)
+  - During discovery, check unique fields in target collections, not just `_id`
+  - Requires scanning for fields with high uniqueness ratio (proxy for keys)
+- [ ] Add field-name-based scoring signal (fuzzy match `customer` → `customers` collection)
+- [ ] Add type-compatibility signal (ObjectId field → ObjectId _id = boost)
+- [ ] Combine signals into composite confidence score (weighted)
+- [ ] Return explanation in relationship API responses
+- [ ] Update OpenAPI spec
+- [ ] Tests for new scoring logic
+
+### Blockers
+- (none)
+
+---
+
+## Sprint 10: Nested Fields + Array References
+
+**Status:** Pending
+**Goal:** Handle real-world MongoDB schemas with nested objects and arrays of references.
+
+### Why This Sprint
+Architecture decision #6 deferred nested fields. Many MongoDB documents look like:
+```json
+{
+  "customer": { "id": "usr_123" },
+  "tags": ["tag_1", "tag_2"],
+  "metadata": { "createdBy": "usr_456" }
+}
+```
+Current scanner only sees top-level keys. It sees `customer` as type "object" and ignores it. It sees `tags` as type "array" and ignores it. This misses a huge class of relationships.
+
+### Checklist
+- [ ] Recurse into nested objects during scan, producing dotted-path fields (e.g., `customer.id`, `metadata.createdBy`)
+- [ ] Cap nesting depth at 3 levels
+- [ ] Detect array-of-scalars as candidate fields (e.g., `tagIds: ["id1", "id2"]`)
+- [ ] Store nested field paths in `collection_fields` with parent indicator
+- [ ] Update candidate heuristics to work on nested paths
+- [ ] Update discovery to match nested source fields against target `_id` / unique fields
+- [ ] Update investigation to traverse nested field paths in documents
+- [ ] Handle array references in investigation (fan out to N related docs)
+- [ ] Update OpenAPI spec
+- [ ] Tests for nested field extraction, array handling
+
+### Blockers
+- Depends on Sprint 9 (discovery needs to handle new field types)
+
+---
+
+## Sprint 11: Scan Quality + API Hardening
+
+**Status:** Pending
+**Goal:** Fix scan bias, add pagination, add resilience. Make the API production-ready.
+
+### Why This Sprint
+Current scan uses `Find().Sort(_id: -1).Limit(N)` which biases toward most recent documents. Older data patterns may be missed. List endpoints have no pagination — will break on large datasets. Worker has no retry.
+
+### Checklist
+- [ ] Replace `$sort + $limit` sampling with MongoDB `$sample` aggregation for truly random samples
+- [ ] Add pagination (offset + limit) to: list scans, list fields, list relationships, list orphans
+- [ ] Add relationship deduplication guard (skip if source+target+fields already exists)
+- [ ] Add retry logic for failed scans (max 3 retries with backoff)
+- [ ] Add connection health-check endpoint (ping MongoDB, return latency + status)
+- [ ] Add scan summary endpoint: total fields, candidates, relationships found, orphans detected
+- [ ] Rate-limit discovery queries against MongoDB (configurable batch size + sleep between batches)
+- [ ] Update OpenAPI spec with pagination params
+- [ ] Tests for pagination, deduplication, retry
+
+### Blockers
+- (none, can run parallel with Sprint 9/10)
+
+---
+
+## Sprint 12: Real-World Validation
+
+**Status:** Pending
+**Goal:** Test against 3-5 real MongoDB datasets. Measure recall, precision, fix gaps.
+
+### Why This Sprint
+The LLM's best suggestion: "That experiment will tell you more about the future of this product than another month of coding." We need to know: what do we miss? What do we falsely detect? This sprint is about data, not code.
+
+### Checklist
+- [ ] Create seed scripts for 3-5 real-world MongoDB schemas:
+  - E-commerce (orders, users, products, reviews, payments)
+  - SaaS multi-tenant (organizations, users, projects, invoices, webhooks)
+  - Blog/CMS (posts, authors, comments, categories, tags)
+  - Analytics (events, sessions, users, campaigns)
+  - CRM (contacts, companies, deals, activities, notes)
+- [ ] Each seed script generates realistic data with known relationships
+- [ ] Run full pipeline (connect → scan → discover → approve → investigate → orphan) against each
+- [ ] Measure and record:
+  - True positives (correctly discovered relationships)
+  - False positives (incorrectly suggested)
+  - False negatives (missed relationships)
+  - Orphan detection accuracy
+- [ ] Document results in `docs/validation-results.md`
+- [ ] Fix top 3 issues found
+- [ ] Add any missing candidate heuristics discovered during testing
+
+### Blockers
+- Depends on Sprint 9, 10 (need advanced discovery + nested support for fair test)
+
+---
+
+## Sprint 13: Investigation UX + API Polish
+
+**Status:** Pending
+**Goal:** Make investigation results useful for API consumers. Add stats, summaries, graph-friendly output.
+
+### Why This Sprint
+Current investigation returns a raw tree. For a frontend or tool to render a useful graph, it needs more: relationship metadata, collection stats, graph-layout hints. Also need a way to explore "what references this document?" without knowing the ID first.
+
+### Checklist
+- [ ] Add `GET /api/connections/:id/stats` — collection count, field count, relationship count, orphan count
+- [ ] Add `GET /api/relationships/:id/trace` — trace a specific relationship forward/backward
+- [ ] Enhance investigate response with:
+  - Collection-level metadata (doc count, field count)
+  - Relationship labels (not just raw field names)
+  - Graph-layout hints (depth, sibling count)
+- [ ] Add `POST /api/investigate/batch` — investigate multiple document IDs at once
+- [ ] Add `GET /api/orphans/:id/investigate` — investigate an orphan's source document
+- [ ] Add `GET /api/connections/:id/schema-map` — return all approved relationships as a graph (nodes=collections, edges=relationships)
+- [ ] Add relationship search/filter by collection name
+- [ ] Update OpenAPI spec
+- [ ] Tests for new endpoints
+
+### Blockers
+- (none, but benefits from Sprint 12 results)
+
+---
+
+## Post-Sprint Planning Questions
+
+1. **Frontend?** Sprints 8-13 are all backend. When does a frontend enter the picture? Is this API-first (others build UIs) or does the project need its own UI?
+2. **Auth?** Zero authentication on any endpoint. Is this always single-user / localhost, or does multi-user auth need to happen?
+3. **Persistence strategy?** Currently every scan creates new records. Should old scans be archived/cleaned? What's the data retention model?
+4. **MongoDB write safety?** All operations are read-only against MongoDB. Should we keep it that way, or will future features need to write (e.g., fix orphans)?
+5. **Performance ceiling?** Discovery does N_candidates × N_collections queries against MongoDB. At what scale does this become a problem? Should we add async discovery?
+6. **Export?** Should relationships/schema be exportable (JSON, Mermaid diagram, Prisma schema)?
