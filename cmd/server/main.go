@@ -63,6 +63,7 @@ func main() {
 
 	scannerSvc := service.NewScannerService(scanStore, connStore)
 	discoverySvc := service.NewDiscoveryService(scanStore, relStore, connStore)
+	investigationSvc := service.NewInvestigationService(connStore, relStore)
 	scannerWorker := worker.NewScannerWorker(scannerSvc)
 	scannerWorker.Start()
 	defer scannerWorker.Stop()
@@ -70,7 +71,8 @@ func main() {
 	connHandler := httpserver.NewConnectionHandler(connStore)
 	scanHandler := httpserver.NewScanHandler(scannerSvc, scannerWorker)
 	relHandler := httpserver.NewRelationshipHandler(relStore, discoverySvc)
-	srv := httpserver.NewServer(connHandler, scanHandler, relHandler, swaggerJSON)
+	investigationHandler := httpserver.NewInvestigationHandler(investigationSvc)
+	srv := httpserver.NewServer(connHandler, scanHandler, relHandler, investigationHandler, swaggerJSON)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

@@ -14,7 +14,8 @@ import (
 	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
 )
 
-const confidenceThreshold = 0.4
+const confidenceThreshold = 0.2
+const autoApproveThreshold = 0.7
 
 type DiscoveryService struct {
 	scanStore *pg.ScanStore
@@ -89,6 +90,11 @@ func (s *DiscoveryService) DiscoverRelationships(ctx context.Context, scanID str
 				continue
 			}
 
+			status := domain.RelationshipStatusSuggested
+			if confidence >= autoApproveThreshold {
+				status = domain.RelationshipStatusApproved
+			}
+
 			rel := &domain.Relationship{
 				ConnectionID:     scan.ConnectionID,
 				SourceCollection: candidate.CollectionName,
@@ -98,16 +104,16 @@ func (s *DiscoveryService) DiscoverRelationships(ctx context.Context, scanID str
 				Confidence:       confidence,
 				MatchedValues:    matched,
 				SampledValues:    sampled,
-				Status:           domain.RelationshipStatusSuggested,
+				Status:           status,
 			}
 
 			if err := s.relStore.Create(ctx, rel); err != nil {
 				log.Printf("warning: failed to create relationship %s.%s → %s._id: %v",
 					candidate.CollectionName, candidate.FieldName, targetColl, err)
 			} else {
-				log.Printf("discovered: %s.%s → %s._id (%.1f%%, %d/%d)",
+				log.Printf("discovered: %s.%s → %s._id (%.1f%%, %d/%d) [%s]",
 					candidate.CollectionName, candidate.FieldName, targetColl,
-					confidence*100, matched, sampled)
+					confidence*100, matched, sampled, status)
 			}
 		}
 	}

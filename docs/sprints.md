@@ -77,9 +77,9 @@
 **Goal:** Match candidate values against _id fields, calculate confidence
 
 ### Checklist
-- [x] Value matching against _id of other collections
+- [x] Value matching against _id of other collections (rewrote to query MongoDB directly)
 - [x] Confidence calculation (matched / sampled)
-- [x] 50% threshold filter
+- [x] 20% threshold filter for suggestions
 - [x] Store suggested relationships
 - [x] Relationship CRUD + approve/reject
 - [x] OpenAPI spec updated
@@ -95,13 +95,13 @@
 
 ## Sprint 5: Relationship Management
 
-**Status:** Not Started
+**Status:** Complete
 **Goal:** CRUD for relationships, approve/reject workflow
 
 ### Checklist
-- [ ] List/filter relationships
-- [ ] Approve endpoint
-- [ ] Reject endpoint
+- [x] List/filter relationships
+- [x] Approve endpoint
+- [x] Reject endpoint
 
 ### Blockers
 - (none)
@@ -113,16 +113,16 @@
 
 ## Sprint 6: Investigation Graph
 
-**Status:** Not Started
+**Status:** Complete
 **Goal:** Trace document by ID across all collections, bidirectional traversal
 
 ### Checklist
-- [ ] Find document by ID across all collections
-- [ ] Load approved relationships
-- [ ] Bidirectional traversal
-- [ ] Cycle detection (visited set)
-- [ ] Max depth 5
-- [ ] Tree + flattened response
+- [x] Find document by ID across all collections
+- [x] Load approved relationships
+- [x] Bidirectional traversal
+- [x] Cycle detection (visited set)
+- [x] Max depth 5
+- [x] Tree + flattened response
 
 ### Blockers
 - (none)
@@ -149,6 +149,15 @@
 
 ## Retrospectives
 
+### Sprint 4 Retro
+- **Pivot:** Initial approach compared stored sample values between two collections. Failed because two independent 200-doc samples rarely overlap enough for confidence.
+- **Fix:** Rewrote discovery to query MongoDB directly — take candidate field values and run `countDocuments({_id: {$in: [...]}})` against the full target collection.
+- **Threshold lowered** from 50% to 20% since direct querying produces accurate confidence.
+- **ObjectID handling:** Values stored as `{"$oid":"hex"}` in PG JSONB must be converted back to `primitive.ObjectID` for MongoDB queries.
+- **Sample values cap** raised from 10 → 200 to improve coverage.
+
+---
+
 ### Sprint 1 Retro
 - (to be filled after completion)
 
@@ -168,3 +177,4 @@
 | 8 | New scan = new snapshot | Preserve history | 2026-05-30 |
 | 9 | Bidirectional investigation | Trace from any direction | 2026-05-30 |
 | 10 | Tree + flat list response | Tree for display, flat for API consumers | 2026-05-30 |
+| 11 | Discovery queries MongoDB directly (not stored samples) | Stored samples had unreliable overlap; direct query gives accurate confidence | 2026-05-31 |

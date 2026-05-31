@@ -26,15 +26,17 @@ type Server struct {
 	connectionHandler     *ConnectionHandler
 	scanHandler           *ScanHandler
 	relationshipHandler   *RelationshipHandler
+	investigationHandler  *InvestigationHandler
 	swaggerJSON           json.RawMessage
 }
 
-func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, relationshipHandler *RelationshipHandler, swaggerJSON json.RawMessage) *Server {
+func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, relationshipHandler *RelationshipHandler, investigationHandler *InvestigationHandler, swaggerJSON json.RawMessage) *Server {
 	s := &Server{
-		connectionHandler:   connectionHandler,
-		scanHandler:         scanHandler,
-		relationshipHandler: relationshipHandler,
-		swaggerJSON:         swaggerJSON,
+		connectionHandler:    connectionHandler,
+		scanHandler:          scanHandler,
+		relationshipHandler:  relationshipHandler,
+		investigationHandler: investigationHandler,
+		swaggerJSON:          swaggerJSON,
 	}
 
 	r := chi.NewRouter()
@@ -60,6 +62,10 @@ func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, r
 
 	r.Route("/api/relationships", func(r chi.Router) {
 		r.Mount("/", s.relationshipHandler.Routes())
+	})
+
+	r.Route("/api/investigate", func(r chi.Router) {
+		r.Mount("/", s.investigationHandler.Routes())
 	})
 
 	s.router = r
