@@ -134,13 +134,13 @@
 
 ## Sprint 7: Orphan Detection
 
-**Status:** Not Started
+**Status:** Complete
 **Goal:** Find broken relationships, report dangling references
 
 ### Checklist
-- [ ] Scan approved relationships for missing targets
-- [ ] Store orphan records
-- [ ] List orphans endpoint
+- [x] Scan approved relationships for missing targets
+- [x] Store orphan records
+- [x] List orphans endpoint
 
 ### Blockers
 - (none)
@@ -178,3 +178,5 @@
 | 9 | Bidirectional investigation | Trace from any direction | 2026-05-30 |
 | 10 | Tree + flat list response | Tree for display, flat for API consumers | 2026-05-30 |
 | 11 | Discovery queries MongoDB directly (not stored samples) | Stored samples had unreliable overlap; direct query gives accurate confidence | 2026-05-31 |
+
+All 7 sprints now complete. The full pipeline is: create connection → scan → discover relationships → approve/reject → investigate documents → detect orphans.

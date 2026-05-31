@@ -505,6 +505,74 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/orphans/detect:
+    post:
+      summary: Detect orphan records
+      description: >
+        Scans all approved relationships and finds source field values that
+        reference non-existent documents in the target collection.
+        Clears previous orphan results for the connection before re-detecting.
+      tags: [orphans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [connection_id]
+              properties:
+                connection_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Orphan detection complete
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Orphan"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Detection failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/orphans:
+    get:
+      summary: List orphan records
+      tags: [orphans]
+      parameters:
+        - name: connection_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of orphans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Orphan"
+        "400":
+          description: Missing connection_id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   parameters:
     ConnectionID:
@@ -740,3 +808,25 @@ components:
           example: "573a1390f29313caabcd416f"
         document:
           description: The full MongoDB document
+
+    Orphan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        relationship_id:
+          type: string
+          format: uuid
+        source_collection:
+          type: string
+          example: comments
+        source_field:
+          type: string
+          example: movie_id
+        missing_value:
+          type: string
+          example: "573a1390f29313caabcd416f"
+        created_at:
+          type: string
+          format: date-time

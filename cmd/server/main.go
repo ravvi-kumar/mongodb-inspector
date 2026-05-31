@@ -60,10 +60,12 @@ func main() {
 	connStore := pg.NewConnectionStore(store.DB())
 	scanStore := pg.NewScanStore(store.DB())
 	relStore := pg.NewRelationshipStore(store.DB())
+	orphanStore := pg.NewOrphanStore(store.DB())
 
 	scannerSvc := service.NewScannerService(scanStore, connStore)
 	discoverySvc := service.NewDiscoveryService(scanStore, relStore, connStore)
 	investigationSvc := service.NewInvestigationService(connStore, relStore)
+	orphanSvc := service.NewOrphanService(connStore, relStore, orphanStore)
 	scannerWorker := worker.NewScannerWorker(scannerSvc)
 	scannerWorker.Start()
 	defer scannerWorker.Stop()
@@ -72,7 +74,8 @@ func main() {
 	scanHandler := httpserver.NewScanHandler(scannerSvc, scannerWorker)
 	relHandler := httpserver.NewRelationshipHandler(relStore, discoverySvc)
 	investigationHandler := httpserver.NewInvestigationHandler(investigationSvc)
-	srv := httpserver.NewServer(connHandler, scanHandler, relHandler, investigationHandler, swaggerJSON)
+	orphanHandler := httpserver.NewOrphanHandler(orphanSvc)
+	srv := httpserver.NewServer(connHandler, scanHandler, relHandler, investigationHandler, orphanHandler, swaggerJSON)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

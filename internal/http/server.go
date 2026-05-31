@@ -27,15 +27,17 @@ type Server struct {
 	scanHandler           *ScanHandler
 	relationshipHandler   *RelationshipHandler
 	investigationHandler  *InvestigationHandler
+	orphanHandler         *OrphanHandler
 	swaggerJSON           json.RawMessage
 }
 
-func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, relationshipHandler *RelationshipHandler, investigationHandler *InvestigationHandler, swaggerJSON json.RawMessage) *Server {
+func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, relationshipHandler *RelationshipHandler, investigationHandler *InvestigationHandler, orphanHandler *OrphanHandler, swaggerJSON json.RawMessage) *Server {
 	s := &Server{
 		connectionHandler:    connectionHandler,
 		scanHandler:          scanHandler,
 		relationshipHandler:  relationshipHandler,
 		investigationHandler: investigationHandler,
+		orphanHandler:        orphanHandler,
 		swaggerJSON:          swaggerJSON,
 	}
 
@@ -66,6 +68,10 @@ func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, r
 
 	r.Route("/api/investigate", func(r chi.Router) {
 		r.Mount("/", s.investigationHandler.Routes())
+	})
+
+	r.Route("/api/orphans", func(r chi.Router) {
+		r.Mount("/", s.orphanHandler.Routes())
 	})
 
 	s.router = r
