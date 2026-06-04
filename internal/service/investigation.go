@@ -17,8 +17,8 @@ import (
 const maxDepth = 5
 
 type InvestigationService struct {
-	connStore *pg.ConnectionStore
-	relStore  *pg.RelationshipStore
+	connStore domain.ConnectionReader
+	relStore  domain.RelationshipReaderWriter
 }
 
 func NewInvestigationService(connStore *pg.ConnectionStore, relStore *pg.RelationshipStore) *InvestigationService {

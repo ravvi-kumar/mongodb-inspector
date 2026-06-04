@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: build run dev tidy migrate-up migrate-down migrate-status docker-up docker-down docker-reset
+.PHONY: build run dev tidy test vet migrate-up migrate-down migrate-status docker-up docker-down docker-reset seed validate
 
 build:
 	go build -o bin/server ./cmd/server
@@ -11,6 +11,12 @@ run: build
 
 tidy:
 	go mod tidy
+
+test:
+	go test ./... -count=1 -race
+
+vet:
+	go vet ./...
 
 migrate-up:
 	goose -dir migrations/sql postgres "$(DATABASE_URL)" up
@@ -33,3 +39,9 @@ docker-down:
 docker-reset: docker-down
 	docker compose down -v
 	docker compose up -d
+
+seed:
+	go run ./cmd/seed
+
+validate:
+	go run ./cmd/validate

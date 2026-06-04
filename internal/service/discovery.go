@@ -18,9 +18,9 @@ const confidenceThreshold = 0.2
 const autoApproveThreshold = 0.7
 
 type DiscoveryService struct {
-	scanStore *pg.ScanStore
-	relStore  *pg.RelationshipStore
-	connStore *pg.ConnectionStore
+	scanStore domain.ScanReader
+	relStore  domain.RelationshipReaderWriter
+	connStore domain.ConnectionReader
 }
 
 func NewDiscoveryService(scanStore *pg.ScanStore, relStore *pg.RelationshipStore, connStore *pg.ConnectionStore) *DiscoveryService {

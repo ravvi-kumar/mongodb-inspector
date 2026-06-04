@@ -16,9 +16,9 @@ import (
 )
 
 type OrphanService struct {
-	connStore *pg.ConnectionStore
-	relStore  *pg.RelationshipStore
-	orphanStore *pg.OrphanStore
+	connStore   domain.ConnectionReader
+	relStore    domain.RelationshipReaderWriter
+	orphanStore domain.OrphanReaderWriter
 }
 
 func NewOrphanService(connStore *pg.ConnectionStore, relStore *pg.RelationshipStore, orphanStore *pg.OrphanStore) *OrphanService {
