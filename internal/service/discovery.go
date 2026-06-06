@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -95,7 +96,7 @@ func (s *DiscoveryService) DiscoverRelationships(ctx context.Context, scanID str
 		}
 
 		for _, target := range uniqueTargets {
-			if target.Collection == candidate.CollectionName {
+			if target.Collection == candidate.CollectionName && target.FieldName == candidate.FieldName {
 				continue
 			}
 
@@ -204,21 +205,99 @@ func estimateUniqueness(ctx context.Context, db *mongo.Database, collName, field
 		return 0
 	}
 
-	distinct, err := db.Collection(collName).Distinct(ctx, fieldName, bson.M{})
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	// Cheaper path: use sampled aggregation instead of full Distinct for large collections
+	if estCount > 100000 {
+		return estimateUniquenessSampled(ctx, db, collName, fieldName, estCount)
+	}
+
+	// For small collections, Distinct is safe
+	if fieldHasIndex(ctx, db, collName, fieldName) {
+		distinct, err := db.Collection(collName).Distinct(ctx, fieldName, bson.M{})
+		if err != nil {
+			return 0
+		}
+		distinctCount := int64(len(distinct))
+		if distinctCount == 0 {
+			return 0
+		}
+		ratio := float64(distinctCount) / float64(estCount)
+		if ratio > 1.0 {
+			ratio = 1.0
+		}
+		return ratio
+	}
+
+	return estimateUniquenessSampled(ctx, db, collName, fieldName, estCount)
+}
+
+func estimateUniquenessSampled(ctx context.Context, db *mongo.Database, collName, fieldName string, estCount int64) float64 {
+	sampleSize := int64(10000)
+	if estCount < sampleSize {
+		sampleSize = estCount
+	}
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$sample", Value: bson.M{"size": sampleSize}}},
+		{{Key: "$group", Value: bson.M{
+			"_id": "$" + fieldName,
+		}}},
+		{{Key: "$count", Value: "distinct_count"}},
+	}
+
+	cursor, err := db.Collection(collName).Aggregate(ctx, pipeline)
 	if err != nil {
+		log.Printf("warning: sampled uniqueness aggregation failed on %s.%s: %v", collName, fieldName, err)
+		return 0
+	}
+	defer cursor.Close(ctx)
+
+	if !cursor.Next(ctx) {
 		return 0
 	}
 
-	distinctCount := int64(len(distinct))
-	if distinctCount == 0 {
+	var result struct {
+		DistinctCount int64 `bson:"distinct_count"`
+	}
+	if err := cursor.Decode(&result); err != nil {
 		return 0
 	}
 
-	ratio := float64(distinctCount) / float64(estCount)
+	if result.DistinctCount == 0 {
+		return 0
+	}
+
+	ratio := float64(result.DistinctCount) / float64(sampleSize)
 	if ratio > 1.0 {
 		ratio = 1.0
 	}
 	return ratio
+}
+
+func fieldHasIndex(ctx context.Context, db *mongo.Database, collName, fieldName string) bool {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	cursor, err := db.Collection(collName).Indexes().List(ctx)
+	if err != nil {
+		return false
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var idx struct {
+			Key bson.M `bson:"key"`
+		}
+		if err := cursor.Decode(&idx); err != nil {
+			continue
+		}
+		if _, ok := idx.Key[fieldName]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func queryMatchCount(ctx context.Context, db *mongo.Database, collection string, field string, values []any) (matched int, sampled int) {
