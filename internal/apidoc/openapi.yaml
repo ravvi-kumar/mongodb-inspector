@@ -739,6 +739,10 @@ components:
           type: string
           enum: [suggested, approved, rejected]
           example: suggested
+        explanation:
+          type: string
+          description: Human-readable explanation of why this relationship was detected
+          example: "45/50 values matched (90.0%). Field name 'userId' suggests 'users' collection. Type compatible (ObjectId→ObjectId). Target field 'users._id' has 100% uniqueness."
         created_at:
           type: string
           format: date-time

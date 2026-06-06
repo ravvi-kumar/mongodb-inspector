@@ -64,6 +64,7 @@ type Relationship struct {
 	MatchedValues    int                 `json:"matched_values"`
 	SampledValues    int                 `json:"sampled_values"`
 	Status           RelationshipStatus  `json:"status"`
+	Explanation      string             `json:"explanation"`
 	CreatedAt        time.Time           `json:"created_at"`
 	UpdatedAt        time.Time           `json:"updated_at"`
 }
