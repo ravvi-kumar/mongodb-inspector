@@ -5,8 +5,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-
-	"github.com/ravikumar/mongodb-inspector/internal/domain"
 )
 
 func TestUniqueNonEmpty(t *testing.T) {
@@ -110,42 +108,6 @@ func TestToBSONValues(t *testing.T) {
 				t.Errorf("toBSONValues(%v) check failed, got %v", tt.input, result)
 			}
 		})
-	}
-}
-
-func TestCollectionsWithIDFields(t *testing.T) {
-	fields := []domain.CollectionField{
-		{CollectionName: "users", FieldName: "_id"},
-		{CollectionName: "users", FieldName: "name"},
-		{CollectionName: "orders", FieldName: "_id"},
-		{CollectionName: "orders", FieldName: "total"},
-		{CollectionName: "logs", FieldName: "message"},
-	}
-
-	result := collectionsWithIDFields(fields)
-
-	if len(result) != 2 {
-		t.Fatalf("expected 2 collections with _id, got %d: %v", len(result), result)
-	}
-
-	seen := map[string]bool{}
-	for _, c := range result {
-		seen[c] = true
-	}
-	if !seen["users"] || !seen["orders"] {
-		t.Errorf("expected users and orders, got %v", result)
-	}
-}
-
-func TestCollectionsWithIDFields_Deduplicates(t *testing.T) {
-	fields := []domain.CollectionField{
-		{CollectionName: "users", FieldName: "_id"},
-		{CollectionName: "users", FieldName: "_id"},
-	}
-
-	result := collectionsWithIDFields(fields)
-	if len(result) != 1 {
-		t.Errorf("expected 1 unique collection, got %d", len(result))
 	}
 }
 

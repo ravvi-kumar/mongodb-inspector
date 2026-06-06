@@ -216,31 +216,44 @@ All 7 sprints now complete. The full pipeline is: create connection → scan →
 
 ## Sprint 9: Discovery V2 — Explain Why + Multi-Signal
 
-**Status:** Pending
+**Status:** Complete
 **Goal:** Make discovery smarter and trustworthy. Add explanation for every suggested relationship. Support non-_id target fields.
 
-### Why This Sprint
-Current discovery only checks value overlap against `_id`. If a field is named `customer` (not `customerId`), it relies on a hardcoded common names list. Developers won't trust a "Relationship Found" without knowing why. The "explain" feature is the trust builder.
-
 ### Checklist
-- [ ] Add `explanation` field to `Relationship` domain model + migration
-- [ ] Generate human-readable explanation for each discovery:
+- [x] Add `explanation` field to `Relationship` domain model + migration `006_explanation.sql`
+- [x] Create `internal/scorer/` package with pluggable signal scorers
+- [x] Generate human-readable explanation for each discovery:
   - How many values matched out of how many sampled
   - What the field type is
   - Whether naming patterns contributed
-  - Whether any competing collection scored lower
-- [ ] Support non-`_id` target fields (e.g., `users.email`, `orders.orderNumber`)
-  - During discovery, check unique fields in target collections, not just `_id`
-  - Requires scanning for fields with high uniqueness ratio (proxy for keys)
-- [ ] Add field-name-based scoring signal (fuzzy match `customer` → `customers` collection)
-- [ ] Add type-compatibility signal (ObjectId field → ObjectId _id = boost)
-- [ ] Combine signals into composite confidence score (weighted)
-- [ ] Return explanation in relationship API responses
-- [ ] Update OpenAPI spec
-- [ ] Tests for new scoring logic
+  - Whether uniqueness of target field is high
+- [x] Support non-`_id` target fields (e.g., `users.email`, `orders.orderNumber`)
+  - During discovery, check unique fields in target collections via `distinct` / `estimatedDocumentCount`
+  - Only includes fields with uniqueness ratio ≥ 0.8
+- [x] Add field-name-based scoring signal (stem + fuzzy match to collection names)
+- [x] Add type-compatibility signal (ObjectId↔ObjectId = 1.0, string↔string = 0.7, cross-type = 0.4)
+- [x] Add naming-convention signal (weighted by candidate reason: Id suffix=0.9, Ref=0.8, By=0.6, common name=0.5, etc.)
+- [x] Add uniqueness signal for non-_id targets
+- [x] Combine signals into composite confidence score (weighted: value_overlap=0.50, name_similarity=0.20, type_compatibility=0.15, naming_convention=0.05, uniqueness=0.10)
+- [x] Return explanation in relationship API responses
+- [x] Update OpenAPI spec with `explanation` property
+- [x] Update `*pg.RelationshipStore` Create/Get/List/UpdateStatus to include explanation column
+- [x] Tests for all scorer signals + composite scoring (31 new tests)
+- [x] `make build` + `make vet` clean
+- [x] `make test` — all tests pass (86 total across 6 packages)
 
 ### Blockers
 - (none)
+
+### Architecture Decisions
+- **AD-12: Pluggable scorer pattern** — Each signal is an independent function returning `(score, reason)`. `CompositeScorer` combines with configurable weights. Makes adding future signals trivial (Sprint 10 nested fields, Sprint 13 UX hints).
+- **AD-13: Uniqueness via MongoDB `distinct`** — Rather than predicting uniqueness from sampling, we query MongoDB's `distinct` command and compare against `estimatedDocumentCount`. Ratio ≥ 0.8 qualifies as a unique key candidate.
+- **AD-14: Weighted composite confidence** — Value overlap still dominates (50%), but name similarity (20%), type compatibility (15%), naming convention (5%), and uniqueness (10%) all contribute. Confidence thresholds unchanged: 0.2 discard, 0.7 auto-approve.
+
+### Notes for Next Sprint
+- Sprint 10: Nested fields + array references. Scorer is ready to accept dotted-path field names and array value types.
+- The `uniqueFields` function already handles arbitrary field names — passing `customer.id` or `metadata.createdBy` through it will work.
+- Candidate detection (`internal/scanner/candidate.go`) needs updating for nested paths in Sprint 10.
 
 ---
 
