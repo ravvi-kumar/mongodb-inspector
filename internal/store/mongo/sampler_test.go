@@ -135,6 +135,133 @@ func TestExtractFields_MixedTypes(t *testing.T) {
 	}
 }
 
+func TestExtractFields_NestedObjects(t *testing.T) {
+	docs := []bson.M{
+		{
+			"_id": "1",
+			"customer": bson.M{"id": "usr_1", "name": "Alice"},
+			"metadata": bson.M{"createdBy": "admin", "version": 2},
+		},
+	}
+
+	fields := extractFields(docs)
+	fieldMap := make(map[string]FieldInfo)
+	for _, f := range fields {
+		fieldMap[f.Name] = f
+	}
+
+	// Top-level object fields should be present
+	if _, ok := fieldMap["customer"]; !ok {
+		t.Error("missing top-level object field 'customer'")
+	}
+	if f := fieldMap["customer"]; f.Type != "object" {
+		t.Errorf("customer type = %q, want object", f.Type)
+	}
+
+	// Nested fields should have dotted paths
+	if _, ok := fieldMap["customer.id"]; !ok {
+		t.Error("missing nested field 'customer.id'")
+	}
+	if f := fieldMap["customer.id"]; f.Type != "string" {
+		t.Errorf("customer.id type = %q, want string", f.Type)
+	}
+
+	if _, ok := fieldMap["customer.name"]; !ok {
+		t.Error("missing nested field 'customer.name'")
+	}
+
+	if _, ok := fieldMap["metadata.createdBy"]; !ok {
+		t.Error("missing nested field 'metadata.createdBy'")
+	}
+	if _, ok := fieldMap["metadata.version"]; !ok {
+		t.Error("missing nested field 'metadata.version'")
+	}
+}
+
+func TestExtractFields_NestedDepthCap(t *testing.T) {
+	docs := []bson.M{
+		{
+			"_id": "1",
+			"level1": bson.M{
+				"level2": bson.M{
+					"level3": bson.M{
+						"level4": bson.M{"tooDeep": "value"},
+					},
+				},
+			},
+		},
+	}
+
+	fields := extractFields(docs)
+	fieldMap := make(map[string]FieldInfo)
+	for _, f := range fields {
+		fieldMap[f.Name] = f
+	}
+
+	if _, ok := fieldMap["level1.level2.level3"]; !ok {
+		t.Error("missing field at depth 3")
+	}
+	if _, ok := fieldMap["level1.level2.level3.level4"]; ok {
+		t.Error("field beyond depth 3 should not be present")
+	}
+}
+
+func TestExtractFields_ArrayOfScalars(t *testing.T) {
+	oid := primitive.NewObjectID()
+	docs := []bson.M{
+		{
+			"_id":    "1",
+			"tags":   primitive.A{"go", "mongodb"},
+			"refs":   primitive.A{oid, primitive.NewObjectID()},
+			"scores": primitive.A{int32(10), int32(20)},
+		},
+	}
+
+	fields := extractFields(docs)
+	fieldMap := make(map[string]FieldInfo)
+	for _, f := range fields {
+		fieldMap[f.Name] = f
+	}
+
+	if f, ok := fieldMap["tags"]; !ok {
+		t.Error("missing 'tags' field")
+	} else {
+		if f.Type != "array" {
+			t.Errorf("tags type = %q, want array", f.Type)
+		}
+		if len(f.Values) != 2 {
+			t.Errorf("tags should have 2 sample values (scalar elements), got %d", len(f.Values))
+		}
+	}
+
+	if f, ok := fieldMap["refs"]; ok {
+		if len(f.Values) != 2 {
+			t.Errorf("refs should have 2 sample values (scalar elements), got %d", len(f.Values))
+		}
+	}
+}
+
+func TestArrayLeafType(t *testing.T) {
+	tests := []struct {
+		name string
+		arr  primitive.A
+		want string
+	}{
+		{"string array", primitive.A{"a", "b"}, "string"},
+		{"mixed with dominant", primitive.A{int32(1), "str", int32(2)}, "int"},
+		{"object array", primitive.A{bson.M{"id": "1"}, bson.M{"id": "2"}}, "object"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := arrayLeafType(tt.arr)
+			if got != tt.want {
+				t.Errorf("arrayLeafType() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExtractFields_ValueCap(t *testing.T) {
 	docs := make([]bson.M, 300)
 	for i := range docs {

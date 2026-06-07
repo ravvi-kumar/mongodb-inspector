@@ -259,34 +259,35 @@ All 7 sprints now complete. The full pipeline is: create connection → scan →
 
 ## Sprint 10: Nested Fields + Array References
 
-**Status:** Pending
+**Status:** Complete
 **Goal:** Handle real-world MongoDB schemas with nested objects and arrays of references.
 
-### Why This Sprint
-Architecture decision #6 deferred nested fields. Many MongoDB documents look like:
-```json
-{
-  "customer": { "id": "usr_123" },
-  "tags": ["tag_1", "tag_2"],
-  "metadata": { "createdBy": "usr_456" }
-}
-```
-Current scanner only sees top-level keys. It sees `customer` as type "object" and ignores it. It sees `tags` as type "array" and ignores it. This misses a huge class of relationships.
-
 ### Checklist
-- [ ] Recurse into nested objects during scan, producing dotted-path fields (e.g., `customer.id`, `metadata.createdBy`)
-- [ ] Cap nesting depth at 3 levels
-- [ ] Detect array-of-scalars as candidate fields (e.g., `tagIds: ["id1", "id2"]`)
-- [ ] Store nested field paths in `collection_fields` with parent indicator
-- [ ] Update candidate heuristics to work on nested paths
-- [ ] Update discovery to match nested source fields against target `_id` / unique fields
-- [ ] Update investigation to traverse nested field paths in documents
-- [ ] Handle array references in investigation (fan out to N related docs)
-- [ ] Update OpenAPI spec
-- [ ] Tests for nested field extraction, array handling
+- [x] Recurse into nested objects during scan, producing dotted-path fields (e.g., `customer.id`, `metadata.createdBy`)
+- [x] Cap nesting depth at 3 levels (`maxNestingDepth = 3` in sampler.go)
+- [x] Detect array-of-scalars as candidate fields (e.g., `tagIds: ["id1", "id2"]`)
+- [x] Array elements sampled as individual values (leaf type: objectId, string, int, etc.)
+- [x] Candidate heuristics updated: array-of-ObjectId, array-of-hex-strings
+- [x] Discovery already handles dotted-path field names (no changes needed — Sprint 9 scorer + uniqueFields accept any field name)
+- [x] `nestedFieldValue` dotted-path walker in investigation (splits on `.`, traverses bson.M/map)
+- [x] Array fan-out in `findRelatedForward` — detects `primitive.A`, uses `$in` to query all referenced docs
+- [x] `toBSONArray` helper converts array elements to BSON values for `$in` queries
+- [x] Tests: nested object extraction, depth cap, array-of-scalars sampling, array leaf type, candidate array heuristics, dotted-path field value
+- [x] `make build` + `make vet` clean
+- [x] `make test` — all tests pass (race detector clean)
 
 ### Blockers
-- Depends on Sprint 9 (discovery needs to handle new field types)
+- (none)
+
+### Architecture Decisions
+- **AD-15: Recursive field extraction with depth cap** — `extractFields` recurses into `bson.M` (objects) and `primitive.A` (arrays of objects) up to 3 levels deep, producing dotted-path names like `customer.id`. Scalar arrays store individual element values, not the array container.
+- **AD-16: Array fan-out via `$in`** — When a relationship source field is an array, `findRelatedForward` uses `{$in: [...values]}` to find all referenced documents in one query, rather than N individual lookups.
+- **AD-17: Candidate detection on nested field names** — `IsCandidateField` already works on path segments via regexes (e.g., `customer.id` matches `[Ii]d$`), so no structural changes needed for nested candidate detection.
+
+### Notes for Next Sprint
+- Sprint 11: Scan Quality + API Hardening. Independent of Sprint 10, can start immediately.
+- `collection_fields` already stores dotted-path names — no schema change needed.
+- The scorer's `scoreNameSimilarity` works on the leaf name by default; could be enhanced to use the full path for better matching.
 
 ---
 

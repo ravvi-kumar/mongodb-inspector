@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -151,9 +152,18 @@ func traverse(
 }
 
 func findRelatedForward(ctx context.Context, db *mongodriver.Database, doc any, rel domain.Relationship) ([]bson.M, error) {
-	val := fieldValue(doc, rel.SourceField)
+	val := nestedFieldValue(doc, rel.SourceField)
 	if val == nil {
 		return nil, nil
+	}
+
+	if arr, ok := val.(primitive.A); ok {
+		bsonVals := toBSONArray(arr)
+		if len(bsonVals) == 0 {
+			return nil, nil
+		}
+		bsonFilter := bson.M{rel.TargetField: bson.M{"$in": bsonVals}}
+		return queryDocs(ctx, db, rel.TargetCollection, bsonFilter)
 	}
 
 	bsonFilter := bson.M{rel.TargetField: toBSONValue(val)}
@@ -221,14 +231,31 @@ func toBSONValue(v any) any {
 	}
 }
 
-func fieldValue(doc any, field string) any {
-	if m, ok := doc.(bson.M); ok {
-		return m[field]
+func nestedFieldValue(doc any, field string) any {
+	parts := strings.Split(field, ".")
+	cur := doc
+	for _, part := range parts {
+		switch m := cur.(type) {
+		case bson.M:
+			cur = m[part]
+		case map[string]any:
+			cur = m[part]
+		default:
+			return nil
+		}
+		if cur == nil {
+			return nil
+		}
 	}
-	if m, ok := doc.(map[string]any); ok {
-		return m[field]
+	return cur
+}
+
+func toBSONArray(arr primitive.A) []any {
+	result := make([]any, 0, len(arr))
+	for _, elem := range arr {
+		result = append(result, toBSONValue(elem))
 	}
-	return nil
+	return result
 }
 
 func docID(doc any) string {

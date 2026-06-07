@@ -74,6 +74,8 @@ func SampleCollection(ctx context.Context, db *mongo.Database, collectionName st
 
 const maxSampleValuesPerField = 200
 
+const maxNestingDepth = 3
+
 type fieldAccum struct {
 	name        string
 	occurrences int
@@ -84,22 +86,7 @@ type fieldAccum struct {
 func extractFields(docs []bson.M) []FieldInfo {
 	fieldMap := make(map[string]*fieldAccum)
 	for _, doc := range docs {
-		for key, val := range doc {
-			if _, ok := fieldMap[key]; !ok {
-				fieldMap[key] = &fieldAccum{
-					name:   key,
-					types:  make(map[string]int),
-					values: make([]any, 0, maxSampleValuesPerField),
-				}
-			}
-			f := fieldMap[key]
-			f.occurrences++
-			typeName := bsonTypeName(val)
-			f.types[typeName]++
-			if len(f.values) < maxSampleValuesPerField {
-				f.values = append(f.values, val)
-			}
-		}
+		extractDoc("", doc, fieldMap, 0)
 	}
 
 	fields := make([]FieldInfo, 0, len(fieldMap))
@@ -121,6 +108,100 @@ func extractFields(docs []bson.M) []FieldInfo {
 		})
 	}
 	return fields
+}
+
+func extractDoc(prefix string, doc bson.M, fieldMap map[string]*fieldAccum, depth int) {
+	if depth >= maxNestingDepth {
+		return
+	}
+	for key, val := range doc {
+		fullName := key
+		if prefix != "" {
+			fullName = prefix + "." + key
+		}
+
+		switch v := val.(type) {
+		case bson.M:
+			typeName := bsonTypeName(v)
+			recordField(fieldMap, fullName, v, typeName)
+			extractDoc(fullName, v, fieldMap, depth+1)
+		case primitive.A:
+			leafType := arrayLeafType(v)
+			if leafType == "object" {
+				recordField(fieldMap, fullName, v, "array")
+				extractArrayObjects(fullName, v, fieldMap, depth+1)
+			} else {
+				sampleArrayScalars(fieldMap, fullName, v, leafType)
+			}
+		default:
+			typeName := bsonTypeName(v)
+			recordField(fieldMap, fullName, v, typeName)
+		}
+	}
+}
+
+func extractArrayObjects(prefix string, arr primitive.A, fieldMap map[string]*fieldAccum, depth int) {
+	if depth >= maxNestingDepth {
+		return
+	}
+	for _, elem := range arr {
+		if obj, ok := elem.(bson.M); ok {
+			extractDoc(prefix, obj, fieldMap, depth)
+		}
+	}
+}
+
+func sampleArrayScalars(fieldMap map[string]*fieldAccum, name string, arr primitive.A, leafType string) {
+	if _, ok := fieldMap[name]; !ok {
+		fieldMap[name] = &fieldAccum{
+			name:   name,
+			types:  make(map[string]int),
+			values: make([]any, 0, maxSampleValuesPerField),
+		}
+	}
+	f := fieldMap[name]
+	f.occurrences++
+	f.types["array"]++
+	count := 0
+	for _, elem := range arr {
+		if count >= maxSampleValuesPerField {
+			break
+		}
+		f.values = append(f.values, elem)
+		count++
+	}
+}
+
+func recordField(fieldMap map[string]*fieldAccum, name string, val any, typeName string) {
+	if _, ok := fieldMap[name]; !ok {
+		fieldMap[name] = &fieldAccum{
+			name:   name,
+			types:  make(map[string]int),
+			values: make([]any, 0, maxSampleValuesPerField),
+		}
+	}
+	f := fieldMap[name]
+	f.occurrences++
+	f.types[typeName]++
+	if len(f.values) < maxSampleValuesPerField {
+		f.values = append(f.values, val)
+	}
+}
+
+func arrayLeafType(arr primitive.A) string {
+	seen := map[string]int{}
+	for _, elem := range arr {
+		seen[bsonTypeName(elem)]++
+	}
+	maxType := ""
+	maxCount := 0
+	for t, c := range seen {
+		if c > maxCount {
+			maxCount = c
+			maxType = t
+		}
+	}
+	return maxType
 }
 
 func bsonTypeName(v any) string {

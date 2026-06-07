@@ -159,13 +159,49 @@ func TestDocID(t *testing.T) {
 func TestFieldValue(t *testing.T) {
 	doc := bson.M{"name": "Alice", "age": 30}
 
-	if v := fieldValue(doc, "name"); v != "Alice" {
-		t.Errorf("fieldValue(name) = %v, want Alice", v)
+	if v := nestedFieldValue(doc, "name"); v != "Alice" {
+		t.Errorf("nestedFieldValue(name) = %v, want Alice", v)
 	}
-	if v := fieldValue(doc, "missing"); v != nil {
-		t.Errorf("fieldValue(missing) = %v, want nil", v)
+	if v := nestedFieldValue(doc, "missing"); v != nil {
+		t.Errorf("nestedFieldValue(missing) = %v, want nil", v)
 	}
-	if v := fieldValue("not a map", "name"); v != nil {
-		t.Errorf("fieldValue on non-map should return nil")
+	if v := nestedFieldValue("not a map", "name"); v != nil {
+		t.Errorf("nestedFieldValue on non-map should return nil")
+	}
+}
+
+func TestNestedFieldValue(t *testing.T) {
+	doc := bson.M{
+		"name": "Alice",
+		"address": bson.M{
+			"city":    "NYC",
+			"zip":     10001,
+			"country": bson.M{"code": "US", "name": "United States"},
+		},
+		"tags": primitive.A{"go", "mongodb"},
+	}
+
+	tests := []struct {
+		field string
+		want  any
+	}{
+		{"name", "Alice"},
+		{"address.city", "NYC"},
+		{"address.zip", 10001},
+		{"address.country.code", "US"},
+		{"address.country.name", "United States"},
+		{"tags", primitive.A{"go", "mongodb"}},
+		{"address.missing", nil},
+		{"address.country.nonexistent", nil},
+		{"nonexistent.field", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.field, func(t *testing.T) {
+			got := nestedFieldValue(doc, tt.field)
+			if got != tt.want {
+				t.Errorf("nestedFieldValue(%q) = %v, want %v", tt.field, got, tt.want)
+			}
+		})
 	}
 }

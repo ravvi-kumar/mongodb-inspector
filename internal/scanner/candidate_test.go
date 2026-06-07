@@ -1,6 +1,10 @@
 package scanner
 
-import "testing"
+import (
+	"testing"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 func TestIsCandidateField_ExcludesId(t *testing.T) {
 	r := IsCandidateField("_id", "objectId", nil)
@@ -145,5 +149,80 @@ func TestIsCandidateField_NonStringValuesIgnored(t *testing.T) {
 	r := IsCandidateField("someField", "string", values)
 	if !r.IsCandidate {
 		t.Error("should be candidate: non-string values are ignored, remaining is hex")
+	}
+}
+
+func TestIsCandidateField_ArrayOfObjectIds(t *testing.T) {
+	values := []any{
+		primitive.NewObjectID(),
+		primitive.NewObjectID(),
+	}
+	r := IsCandidateField("tagIds", "array", values)
+	if !r.IsCandidate {
+		t.Error("array of ObjectIds should be candidate")
+	}
+	if r.Reason != "array of ObjectIds" {
+		t.Errorf("unexpected reason: %s", r.Reason)
+	}
+}
+
+func TestIsCandidateField_ArrayOfHexStrings(t *testing.T) {
+	values := []any{
+		"507f1f77bcf86cd799439011",
+		"507f1f77bcf86cd799439012",
+		"507f1f77bcf86cd799439013",
+	}
+	r := IsCandidateField("tagIds", "array", values)
+	if !r.IsCandidate {
+		t.Error("array of hex strings should be candidate")
+	}
+	if r.Reason != "array of hex strings (look like ObjectIDs)" {
+		t.Errorf("unexpected reason: %s", r.Reason)
+	}
+}
+
+func TestIsCandidateField_ArrayOfHexStrings_Threshold(t *testing.T) {
+	values := []any{
+		"not-hex",
+		"also-not-hex",
+		"507f1f77bcf86cd799439011",
+	}
+	r := IsCandidateField("tagIds", "array", values)
+	if r.IsCandidate {
+		t.Error("array with mostly non-hex strings should not be candidate")
+	}
+}
+
+func TestIsCandidateField_ArrayOfNonCandidate(t *testing.T) {
+	values := []any{
+		"hello", "world",
+	}
+	r := IsCandidateField("tags", "array", values)
+	if r.IsCandidate {
+		t.Error("array of plain strings should not be candidate")
+	}
+}
+
+func TestIsCandidateField_NestedCandidateViaFieldName(t *testing.T) {
+	r := IsCandidateField("customer.id", "string", nil)
+	if !r.IsCandidate {
+		t.Error("dotted path with 'id' suffix should be candidate")
+	}
+	if r.Reason != "field name ends with Id/_id" {
+		t.Errorf("unexpected reason: %s", r.Reason)
+	}
+}
+
+func TestIsCandidateField_NestedCandidateViaBySuffix(t *testing.T) {
+	r := IsCandidateField("metadata.createdBy", "string", nil)
+	if !r.IsCandidate {
+		t.Error("dotted path with By suffix should be candidate")
+	}
+}
+
+func TestIsCandidateField_NestedExcludesId(t *testing.T) {
+	r := IsCandidateField("_id", "objectId", nil)
+	if r.IsCandidate {
+		t.Error("_id should not be candidate even as exact match")
 	}
 }
