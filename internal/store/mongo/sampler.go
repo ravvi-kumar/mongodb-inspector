@@ -7,7 +7,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type FieldInfo struct {
@@ -44,7 +43,10 @@ func SampleCollection(ctx context.Context, db *mongo.Database, collectionName st
 		}, nil
 	}
 
-	cursor, err := coll.Find(ctx, bson.M{}, options.Find().SetSort(bson.D{{Key: "_id", Value: -1}}).SetLimit(limit))
+	pipeline := mongo.Pipeline{
+		{{Key: "$sample", Value: bson.M{"size": limit}}},
+	}
+	cursor, err := coll.Aggregate(ctx, pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("find documents: %w", err)
 	}

@@ -33,12 +33,17 @@ func (s *ConnectionStore) Create(ctx context.Context, conn *domain.Connection) e
 	return nil
 }
 
-func (s *ConnectionStore) List(ctx context.Context) ([]domain.Connection, error) {
+func (s *ConnectionStore) List(ctx context.Context, offset, limit int) ([]domain.Connection, int, error) {
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM connections`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count connections: %w", err)
+	}
+
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, name, connection_string, database, created_at, updated_at
-		 FROM connections ORDER BY created_at DESC`)
+		 FROM connections ORDER BY created_at DESC OFFSET $1 LIMIT $2`, offset, limit)
 	if err != nil {
-		return nil, fmt.Errorf("list connections: %w", err)
+		return nil, 0, fmt.Errorf("list connections: %w", err)
 	}
 	defer rows.Close()
 
@@ -46,11 +51,11 @@ func (s *ConnectionStore) List(ctx context.Context) ([]domain.Connection, error)
 	for rows.Next() {
 		var c domain.Connection
 		if err := rows.Scan(&c.ID, &c.Name, &c.ConnectionString, &c.Database, &c.CreatedAt, &c.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan connection: %w", err)
+			return nil, 0, fmt.Errorf("scan connection: %w", err)
 		}
 		conns = append(conns, c)
 	}
-	return conns, rows.Err()
+	return conns, total, rows.Err()
 }
 
 func (s *ConnectionStore) Get(ctx context.Context, id string) (*domain.Connection, error) {

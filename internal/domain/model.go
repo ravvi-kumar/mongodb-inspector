@@ -28,6 +28,7 @@ type Scan struct {
 	Status       ScanStatus `json:"status"`
 	SampleSize   int        `json:"sample_size"`
 	Error        *string    `json:"error,omitempty"`
+	RetryCount   int        `json:"retry_count"`
 	StartedAt    *time.Time `json:"started_at,omitempty"`
 	CompletedAt  *time.Time `json:"completed_at,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
@@ -96,4 +97,21 @@ type FlatDocument struct {
 	Collection string `json:"collection"`
 	ID         string `json:"id"`
 	Document   any    `json:"document"`
+}
+
+type PaginatedResponse struct {
+	Data   any   `json:"data"`
+	Total  int   `json:"total"`
+	Offset int   `json:"offset"`
+	Limit  int   `json:"limit"`
+}
+
+type ScanSummary struct {
+	ScanID          string `json:"scan_id"`
+	Status          string `json:"status"`
+	TotalFields     int    `json:"total_fields"`
+	CandidateFields int    `json:"candidate_fields"`
+	Relationships   int    `json:"relationships"`
+	Orphans         int    `json:"orphans"`
+	Collections     int    `json:"collections"`
 }

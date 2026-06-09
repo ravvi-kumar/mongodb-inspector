@@ -71,7 +71,8 @@ func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ConnectionHandler) List(w http.ResponseWriter, r *http.Request) {
-	conns, err := h.connStore.List(r.Context())
+	offset, limit := parsePagination(r)
+	conns, total, err := h.connStore.List(r.Context(), offset, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -79,7 +80,12 @@ func (h *ConnectionHandler) List(w http.ResponseWriter, r *http.Request) {
 	if conns == nil {
 		conns = []domain.Connection{}
 	}
-	writeJSON(w, http.StatusOK, conns)
+	writeJSON(w, http.StatusOK, domain.PaginatedResponse{
+		Data:   conns,
+		Total:  total,
+		Offset: offset,
+		Limit:  limit,
+	})
 }
 
 func (h *ConnectionHandler) Get(w http.ResponseWriter, r *http.Request) {
