@@ -50,14 +50,35 @@ func (s *OrphanStore) CreateBatch(ctx context.Context, orphans []domain.Orphan) 
 }
 
 func (s *OrphanStore) ListByConnection(ctx context.Context, connectionID string) ([]domain.Orphan, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT o.id, o.relationship_id, o.source_collection, o.source_field, o.missing_value, o.created_at
-		 FROM orphans o
+	orphan, _, err := s.ListByConnectionPaginated(ctx, connectionID, 0, 0)
+	return orphan, err
+}
+
+func (s *OrphanStore) ListByConnectionPaginated(ctx context.Context, connectionID string, offset, limit int) ([]domain.Orphan, int64, error) {
+	var total int64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM orphans o
 		 JOIN relationships r ON r.id = o.relationship_id
-		 WHERE r.connection_id = $1
-		 ORDER BY o.created_at DESC`, connectionID)
+		 WHERE r.connection_id = $1`, connectionID).Scan(&total)
 	if err != nil {
-		return nil, fmt.Errorf("list orphans: %w", err)
+		return nil, 0, fmt.Errorf("count orphans: %w", err)
+	}
+
+	query := `SELECT o.id, o.relationship_id, o.source_collection, o.source_field, o.missing_value, o.created_at
+			  FROM orphans o
+			  JOIN relationships r ON r.id = o.relationship_id
+			  WHERE r.connection_id = $1
+			  ORDER BY o.created_at DESC`
+	args := []any{connectionID}
+
+	if limit > 0 {
+		query += ` LIMIT $2 OFFSET $3`
+		args = append(args, limit, offset)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list orphans: %w", err)
 	}
 	defer rows.Close()
 
@@ -65,11 +86,11 @@ func (s *OrphanStore) ListByConnection(ctx context.Context, connectionID string)
 	for rows.Next() {
 		var o domain.Orphan
 		if err := rows.Scan(&o.ID, &o.RelationshipID, &o.SourceCollection, &o.SourceField, &o.MissingValue, &o.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan orphan: %w", err)
+			return nil, 0, fmt.Errorf("scan orphan: %w", err)
 		}
 		orphans = append(orphans, o)
 	}
-	return orphans, rows.Err()
+	return orphans, total, rows.Err()
 }
 
 func (s *OrphanStore) DeleteByConnection(ctx context.Context, connectionID string) error {

@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/ravikumar/mongodb-inspector/internal/domain"
@@ -116,6 +117,49 @@ func (m *MockRelationshipStore) Create(ctx context.Context, r *domain.Relationsh
 	return nil
 }
 
+func (m *MockRelationshipStore) CreateOrSkip(ctx context.Context, r *domain.Relationship) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, rel := range m.rels {
+		if rel.ConnectionID == r.ConnectionID && rel.SourceCollection == r.SourceCollection && rel.SourceField == r.SourceField && rel.TargetCollection == r.TargetCollection && rel.TargetField == r.TargetField {
+			return false, nil
+		}
+	}
+	m.rels[r.ID] = r
+	return true, nil
+}
+
+func (m *MockRelationshipStore) List(ctx context.Context, connectionID string, statusFilter *string) ([]domain.Relationship, error) {
+	rels, _, err := m.ListPaginated(ctx, connectionID, statusFilter, 0, 0)
+	return rels, err
+}
+
+func (m *MockRelationshipStore) ListPaginated(ctx context.Context, connectionID string, statusFilter *string, offset, limit int) ([]domain.Relationship, int64, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var result []domain.Relationship
+	for _, r := range m.rels {
+		if r.ConnectionID != connectionID {
+			continue
+		}
+		if statusFilter != nil && string(r.Status) != *statusFilter {
+			continue
+		}
+		result = append(result, *r)
+	}
+	total := int64(len(result))
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	if offset >= len(result) {
+		return []domain.Relationship{}, total, nil
+	}
+	if limit > 0 && offset+limit < len(result) {
+		result = result[offset : offset+limit]
+	} else {
+		result = result[offset:]
+	}
+	return result, total, nil
+}
+
 func (m *MockRelationshipStore) GetApproved(ctx context.Context, connectionID string) ([]domain.Relationship, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -162,7 +206,22 @@ func (m *MockOrphanStore) CreateBatch(ctx context.Context, orphans []domain.Orph
 }
 
 func (m *MockOrphanStore) ListByConnection(ctx context.Context, connectionID string) ([]domain.Orphan, error) {
+	orphans, _, err := m.ListByConnectionPaginated(ctx, connectionID, 0, 0)
+	return orphans, err
+}
+
+func (m *MockOrphanStore) ListByConnectionPaginated(ctx context.Context, connectionID string, offset, limit int) ([]domain.Orphan, int64, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.orphans, nil
+	total := int64(len(m.orphans))
+	if offset >= len(m.orphans) {
+		return []domain.Orphan{}, total, nil
+	}
+	result := m.orphans
+	if limit > 0 && offset+limit < len(result) {
+		result = result[offset : offset+limit]
+	} else {
+		result = result[offset:]
+	}
+	return result, total, nil
 }

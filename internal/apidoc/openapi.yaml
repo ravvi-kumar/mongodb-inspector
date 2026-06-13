@@ -30,15 +30,16 @@ paths:
     get:
       summary: List all connections
       tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: List of connections
+          description: List of connections with pagination
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Connection"
+                $ref: "#/components/schemas/PaginatedResponse"
     post:
       summary: Create a MongoDB connection
       description: >
@@ -204,6 +205,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/connections/{id}/health:
+    get:
+      summary: Check connection health
+      description: >
+        Pings MongoDB and returns connection status with latency
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: Connection is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  latency:
+                    type: integer
+                    description: Latency in milliseconds
+                    example: 5
+                  database:
+                    type: string
+                    example: myapp
+        "404":
+          description: Connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Cannot connect to MongoDB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/scans:
     get:
       summary: List scans for a connection
@@ -215,15 +255,15 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: List of scans
+          description: List of scans with pagination
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Scan"
+                $ref: "#/components/schemas/PaginatedResponse"
     post:
       summary: Start a new scan
       description: >
@@ -287,15 +327,15 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: List of collection fields
+          description: List of collection fields with pagination
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/CollectionField"
+                $ref: "#/components/schemas/PaginatedResponse"
 
   /api/scans/{id}/candidates:
     get:
@@ -321,6 +361,34 @@ paths:
                 items:
                   $ref: "#/components/schemas/CollectionField"
 
+  /api/scans/{id}/summary:
+    get:
+      summary: Get scan summary
+      description: >
+        Returns summary statistics for a scan including fields,
+        candidates, relationships found, and orphans detected
+      tags: [scans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Scan summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanSummary"
+        "404":
+          description: Scan not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/relationships:
     get:
       summary: List discovered relationships
@@ -339,15 +407,15 @@ paths:
           schema:
             type: string
             enum: [suggested, approved, rejected]
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: List of relationships
+          description: List of relationships with pagination
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Relationship"
+                $ref: "#/components/schemas/PaginatedResponse"
 
   /api/relationships/discover:
     post:
@@ -557,15 +625,15 @@ paths:
           schema:
             type: string
             format: uuid
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Limit"
       responses:
         "200":
-          description: List of orphans
+          description: List of orphans with pagination
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Orphan"
+                $ref: "#/components/schemas/PaginatedResponse"
         "400":
           description: Missing connection_id
           content:
@@ -583,8 +651,44 @@ components:
       schema:
         type: string
         format: uuid
+    Offset:
+      name: offset
+      in: query
+      required: false
+      description: Number of items to skip (default 0)
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Number of items to return (default 20, max 100)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
 
   schemas:
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          description: The paginated data array
+          type: array
+          items: {}
+        total:
+          description: Total number of items
+          type: integer
+        offset:
+          description: Number of items skipped
+          type: integer
+        limit:
+          description: Number of items per page
+          type: integer
+
     Connection:
       type: object
       properties:
@@ -606,6 +710,28 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ScanSummary:
+      type: object
+      properties:
+        scan_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        total_fields:
+          type: integer
+          example: 45
+        total_candidates:
+          type: integer
+          example: 12
+        total_relationships:
+          type: integer
+          example: 8
+        total_orphans:
+          type: integer
+          example: 2
 
     CreateConnectionRequest:
       type: object

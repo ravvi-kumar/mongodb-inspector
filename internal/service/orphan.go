@@ -31,10 +31,18 @@ func (s *OrphanService) DetectOrphans(ctx context.Context, connectionID string) 
 		return nil, fmt.Errorf("get connection: %w", err)
 	}
 
-	rels, err := s.relStore.GetApproved(ctx, connectionID)
+	rels, _, err := s.relStore.ListPaginated(ctx, connectionID, nil, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("get approved relationships: %w", err)
 	}
+
+	filteredRels := make([]domain.Relationship, 0)
+	for _, rel := range rels {
+		if rel.Status == domain.RelationshipStatusApproved {
+			filteredRels = append(filteredRels, rel)
+		}
+	}
+	rels = filteredRels
 
 	if len(rels) == 0 {
 		return nil, nil
@@ -192,5 +200,10 @@ func idValToString(v any) string {
 }
 
 func (s *OrphanService) ListOrphans(ctx context.Context, connectionID string) ([]domain.Orphan, error) {
-	return s.orphanStore.ListByConnection(ctx, connectionID)
+	orphans, _, err := s.orphanStore.ListByConnectionPaginated(ctx, connectionID, 0, 0)
+	return orphans, err
+}
+
+func (s *OrphanService) ListOrphansPaginated(ctx context.Context, connectionID string, offset, limit int) ([]domain.Orphan, int64, error) {
+	return s.orphanStore.ListByConnectionPaginated(ctx, connectionID, offset, limit)
 }

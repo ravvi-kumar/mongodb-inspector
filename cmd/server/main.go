@@ -64,6 +64,7 @@ func main() {
 
 	scannerSvc := service.NewScannerService(scanStore, connStore)
 	discoverySvc := service.NewDiscoveryService(scanStore, relStore, connStore)
+	discoverySvc.SetRateLimit(cfg.DiscoveryBatchSize, cfg.DiscoveryDelayMs)
 	investigationSvc := service.NewInvestigationService(connStore, relStore)
 	orphanSvc := service.NewOrphanService(connStore, relStore, orphanStore)
 	scannerWorker := worker.NewScannerWorker(scannerSvc)
@@ -71,7 +72,7 @@ func main() {
 	defer scannerWorker.Stop()
 
 	connHandler := httpserver.NewConnectionHandler(connStore)
-	scanHandler := httpserver.NewScanHandler(scannerSvc, scannerWorker)
+	scanHandler := httpserver.NewScanHandler(scannerSvc, scannerWorker, relStore, orphanStore)
 	relHandler := httpserver.NewRelationshipHandler(relStore, discoverySvc)
 	investigationHandler := httpserver.NewInvestigationHandler(investigationSvc)
 	orphanHandler := httpserver.NewOrphanHandler(orphanSvc)

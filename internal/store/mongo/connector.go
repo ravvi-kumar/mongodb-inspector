@@ -86,3 +86,7 @@ func (c *Connector) Client() *mongo.Client {
 func (c *Connector) Database(dbName string) *mongo.Database {
 	return c.client.Database(dbName)
 }
+
+func (c *Connector) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx, nil)
+}

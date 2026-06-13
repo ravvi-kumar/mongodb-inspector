@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -199,7 +200,9 @@ func TestNestedFieldValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.field, func(t *testing.T) {
 			got := nestedFieldValue(doc, tt.field)
-			if got != tt.want {
+			gotString := fmt.Sprintf("%v", got)
+			wantString := fmt.Sprintf("%v", tt.want)
+			if gotString != wantString {
 				t.Errorf("nestedFieldValue(%q) = %v, want %v", tt.field, got, tt.want)
 			}
 		})

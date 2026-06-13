@@ -61,7 +61,9 @@ func (h *OrphanHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orphans, err := h.service.ListOrphans(r.Context(), connectionID)
+	offset, limit := parsePagination(r)
+
+	orphans, total, err := h.service.ListOrphansPaginated(r.Context(), connectionID, offset, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -70,5 +72,10 @@ func (h *OrphanHandler) List(w http.ResponseWriter, r *http.Request) {
 		orphans = []domain.Orphan{}
 	}
 
-	writeJSON(w, http.StatusOK, orphans)
+	writeJSON(w, http.StatusOK, domain.PaginatedResponse{
+		Data:   orphans,
+		Total:  int(total),
+		Offset: offset,
+		Limit:  limit,
+	})
 }

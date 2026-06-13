@@ -2,13 +2,14 @@ package http
 
 import (
 	"context"
-	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/ravikumar/mongodb-inspector/internal/domain"
 	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
 	mongostore "github.com/ravikumar/mongodb-inspector/internal/store/mongo"
+	"net/http"
 )
 
 type ConnectionHandler struct {
@@ -29,6 +30,7 @@ func (h *ConnectionHandler) Routes() chi.Router {
 	r.Get("/{id}/databases", h.ListDatabases)
 	r.Post("/{id}/select-db", h.SelectDatabase)
 	r.Get("/{id}/collections", h.ListCollections)
+	r.Get("/{id}/health", h.HealthCheck)
 
 	return r
 }
@@ -185,4 +187,37 @@ func (h *ConnectionHandler) ListCollections(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"collections": collections})
+}
+
+func (h *ConnectionHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	conn, err := h.connStore.Get(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "connection not found")
+		return
+	}
+
+	start := time.Now()
+	mongoConn, err := mongostore.NewConnector(r.Context(), conn.ConnectionString)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "cannot connect to MongoDB: "+err.Error())
+		return
+	}
+	defer mongoConn.Close(context.Background())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := mongoConn.Ping(ctx); err != nil {
+		writeError(w, http.StatusBadGateway, "MongoDB ping failed: "+err.Error())
+		return
+	}
+
+	latency := time.Since(start)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":   "healthy",
+		"latency":  latency.Milliseconds(),
+		"database": conn.Database,
+	})
 }

@@ -2,6 +2,8 @@ package pg
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,6 +36,29 @@ func (s *RelationshipStore) Create(ctx context.Context, r *domain.Relationship) 
 	return nil
 }
 
+func (s *RelationshipStore) CreateOrSkip(ctx context.Context, r *domain.Relationship) (bool, error) {
+	now := time.Now()
+	r.CreatedAt = now
+	r.UpdatedAt = now
+
+	err := s.db.QueryRowContext(ctx,
+		`INSERT INTO relationships (connection_id, source_collection, source_field, target_collection, target_field, confidence, matched_values, sampled_values, status, explanation)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 ON CONFLICT (connection_id, source_collection, source_field, target_collection, target_field) DO NOTHING
+		 RETURNING id, created_at, updated_at`,
+		r.ConnectionID, r.SourceCollection, r.SourceField, r.TargetCollection, r.TargetField,
+		r.Confidence, r.MatchedValues, r.SampledValues, string(r.Status), r.Explanation,
+	).Scan(&r.ID, &r.CreatedAt, &r.UpdatedAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("create or skip relationship: %w", err)
+	}
+	return true, nil
+}
+
 func (s *RelationshipStore) Get(ctx context.Context, id string) (*domain.Relationship, error) {
 	var r domain.Relationship
 	var status string
@@ -49,9 +74,28 @@ func (s *RelationshipStore) Get(ctx context.Context, id string) (*domain.Relatio
 }
 
 func (s *RelationshipStore) List(ctx context.Context, connectionID string, statusFilter *string) ([]domain.Relationship, error) {
-	query := `SELECT id, connection_id, source_collection, source_field, target_collection, target_field, confidence, matched_values, sampled_values, status, explanation, created_at, updated_at
-			  FROM relationships WHERE connection_id = $1`
+	rels, _, err := s.ListPaginated(ctx, connectionID, statusFilter, 0, 0)
+	return rels, err
+}
+
+func (s *RelationshipStore) ListPaginated(ctx context.Context, connectionID string, statusFilter *string, offset, limit int) ([]domain.Relationship, int64, error) {
+	query := `SELECT COUNT(*) FROM relationships WHERE connection_id = $1`
 	args := []any{connectionID}
+
+	if statusFilter != nil {
+		query += ` AND status = $2`
+		args = append(args, *statusFilter)
+	}
+
+	var total int64
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count relationships: %w", err)
+	}
+
+	query = `SELECT id, connection_id, source_collection, source_field, target_collection, target_field, confidence, matched_values, sampled_values, status, explanation, created_at, updated_at
+			  FROM relationships WHERE connection_id = $1`
+	args = []any{connectionID}
 
 	if statusFilter != nil {
 		query += ` AND status = $2`
@@ -60,9 +104,14 @@ func (s *RelationshipStore) List(ctx context.Context, connectionID string, statu
 
 	query += ` ORDER BY confidence DESC`
 
+	if limit > 0 {
+		query += ` LIMIT $` + fmt.Sprintf("%d", len(args)+1) + ` OFFSET $` + fmt.Sprintf("%d", len(args)+2)
+		args = append(args, limit, offset)
+	}
+
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list relationships: %w", err)
+		return nil, 0, fmt.Errorf("list relationships: %w", err)
 	}
 	defer rows.Close()
 
@@ -71,12 +120,12 @@ func (s *RelationshipStore) List(ctx context.Context, connectionID string, statu
 		var r domain.Relationship
 		var status string
 		if err := rows.Scan(&r.ID, &r.ConnectionID, &r.SourceCollection, &r.SourceField, &r.TargetCollection, &r.TargetField, &r.Confidence, &r.MatchedValues, &r.SampledValues, &status, &r.Explanation, &r.CreatedAt, &r.UpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan relationship: %w", err)
+			return nil, 0, fmt.Errorf("scan relationship: %w", err)
 		}
 		r.Status = domain.RelationshipStatus(status)
 		rels = append(rels, r)
 	}
-	return rels, rows.Err()
+	return rels, total, rows.Err()
 }
 
 func (s *RelationshipStore) UpdateStatus(ctx context.Context, id string, status domain.RelationshipStatus) (*domain.Relationship, error) {
@@ -97,7 +146,8 @@ func (s *RelationshipStore) UpdateStatus(ctx context.Context, id string, status 
 
 func (s *RelationshipStore) GetApproved(ctx context.Context, connectionID string) ([]domain.Relationship, error) {
 	status := string(domain.RelationshipStatusApproved)
-	return s.List(ctx, connectionID, &status)
+	rels, _, err := s.ListPaginated(ctx, connectionID, &status, 0, 0)
+	return rels, err
 }
 
 func (s *RelationshipStore) GetByScanConnection(ctx context.Context, scanID string) (string, error) {

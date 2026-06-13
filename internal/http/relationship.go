@@ -43,7 +43,9 @@ func (h *RelationshipHandler) List(w http.ResponseWriter, r *http.Request) {
 		statusFilter = &s
 	}
 
-	rels, err := h.relStore.List(r.Context(), connectionID, statusFilter)
+	offset, limit := parsePagination(r)
+
+	rels, total, err := h.relStore.ListPaginated(r.Context(), connectionID, statusFilter, offset, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -51,7 +53,12 @@ func (h *RelationshipHandler) List(w http.ResponseWriter, r *http.Request) {
 	if rels == nil {
 		rels = []domain.Relationship{}
 	}
-	writeJSON(w, http.StatusOK, rels)
+	writeJSON(w, http.StatusOK, domain.PaginatedResponse{
+		Data:   rels,
+		Total:  int(total),
+		Offset: offset,
+		Limit:  limit,
+	})
 }
 
 func (h *RelationshipHandler) Get(w http.ResponseWriter, r *http.Request) {

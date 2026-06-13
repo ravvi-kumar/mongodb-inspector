@@ -73,11 +73,30 @@ func (s *ScanStore) UpdateStatus(ctx context.Context, id string, status domain.S
 }
 
 func (s *ScanStore) ListByConnection(ctx context.Context, connectionID string) ([]domain.Scan, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, connection_id, status, sample_size, error, started_at, completed_at, created_at
-		 FROM scans WHERE connection_id = $1 ORDER BY created_at DESC`, connectionID)
+	scans, _, err := s.ListByConnectionPaginated(ctx, connectionID, 0, 0)
+	return scans, err
+}
+
+func (s *ScanStore) ListByConnectionPaginated(ctx context.Context, connectionID string, offset, limit int) ([]domain.Scan, int64, error) {
+	var total int64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM scans WHERE connection_id = $1`, connectionID).Scan(&total)
 	if err != nil {
-		return nil, fmt.Errorf("list scans: %w", err)
+		return nil, 0, fmt.Errorf("count scans: %w", err)
+	}
+
+	query := `SELECT id, connection_id, status, sample_size, error, started_at, completed_at, created_at
+			  FROM scans WHERE connection_id = $1 ORDER BY created_at DESC`
+	args := []any{connectionID}
+
+	if limit > 0 {
+		query += ` LIMIT $2 OFFSET $3`
+		args = append(args, limit, offset)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list scans: %w", err)
 	}
 	defer rows.Close()
 
@@ -86,12 +105,12 @@ func (s *ScanStore) ListByConnection(ctx context.Context, connectionID string) (
 		var scan domain.Scan
 		var status string
 		if err := rows.Scan(&scan.ID, &scan.ConnectionID, &status, &scan.SampleSize, &scan.Error, &scan.StartedAt, &scan.CompletedAt, &scan.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan row: %w", err)
+			return nil, 0, fmt.Errorf("scan row: %w", err)
 		}
 		scan.Status = domain.ScanStatus(status)
 		scans = append(scans, scan)
 	}
-	return scans, rows.Err()
+	return scans, total, rows.Err()
 }
 
 func (s *ScanStore) InsertField(ctx context.Context, f *domain.CollectionField) error {
@@ -113,12 +132,31 @@ func (s *ScanStore) InsertField(ctx context.Context, f *domain.CollectionField) 
 }
 
 func (s *ScanStore) GetFieldsByScan(ctx context.Context, scanID string) ([]domain.CollectionField, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, scan_id, collection_name, field_name, field_type, sample_values, is_candidate, candidate_reason, document_count
-		 FROM collection_fields WHERE scan_id = $1
-		 ORDER BY collection_name, field_name`, scanID)
+	fields, _, err := s.GetFieldsByScanPaginated(ctx, scanID, 0, 0)
+	return fields, err
+}
+
+func (s *ScanStore) GetFieldsByScanPaginated(ctx context.Context, scanID string, offset, limit int) ([]domain.CollectionField, int64, error) {
+	var total int64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM collection_fields WHERE scan_id = $1`, scanID).Scan(&total)
 	if err != nil {
-		return nil, fmt.Errorf("get fields: %w", err)
+		return nil, 0, fmt.Errorf("count fields: %w", err)
+	}
+
+	query := `SELECT id, scan_id, collection_name, field_name, field_type, sample_values, is_candidate, candidate_reason, document_count
+			  FROM collection_fields WHERE scan_id = $1
+			  ORDER BY collection_name, field_name`
+	args := []any{scanID}
+
+	if limit > 0 {
+		query += ` LIMIT $2 OFFSET $3`
+		args = append(args, limit, offset)
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("get fields: %w", err)
 	}
 	defer rows.Close()
 
@@ -127,14 +165,14 @@ func (s *ScanStore) GetFieldsByScan(ctx context.Context, scanID string) ([]domai
 		var f domain.CollectionField
 		var values []byte
 		if err := rows.Scan(&f.ID, &f.ScanID, &f.CollectionName, &f.FieldName, &f.FieldType, &values, &f.IsCandidate, &f.CandidateReason, &f.DocumentCount); err != nil {
-			return nil, fmt.Errorf("scan field row: %w", err)
+			return nil, 0, fmt.Errorf("scan field row: %w", err)
 		}
 		if err := json.Unmarshal(values, &f.SampleValues); err != nil {
-			return nil, fmt.Errorf("unmarshal sample values: %w", err)
+			return nil, 0, fmt.Errorf("unmarshal sample values: %w", err)
 		}
 		fields = append(fields, f)
 	}
-	return fields, rows.Err()
+	return fields, total, rows.Err()
 }
 
 func (s *ScanStore) GetCandidateFields(ctx context.Context, scanID string) ([]domain.CollectionField, error) {

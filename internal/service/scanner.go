@@ -119,11 +119,21 @@ func (s *ScannerService) GetScan(ctx context.Context, scanID string) (*domain.Sc
 }
 
 func (s *ScannerService) ListScans(ctx context.Context, connectionID string) ([]domain.Scan, error) {
-	return s.scanStore.ListByConnection(ctx, connectionID)
+	scans, _, err := s.scanStore.ListByConnectionPaginated(ctx, connectionID, 0, 0)
+	return scans, err
+}
+
+func (s *ScannerService) ListScansPaginated(ctx context.Context, connectionID string, offset, limit int) ([]domain.Scan, int64, error) {
+	return s.scanStore.ListByConnectionPaginated(ctx, connectionID, offset, limit)
 }
 
 func (s *ScannerService) GetScanFields(ctx context.Context, scanID string) ([]domain.CollectionField, error) {
-	return s.scanStore.GetFieldsByScan(ctx, scanID)
+	fields, _, err := s.scanStore.GetFieldsByScanPaginated(ctx, scanID, 0, 0)
+	return fields, err
+}
+
+func (s *ScannerService) GetScanFieldsPaginated(ctx context.Context, scanID string, offset, limit int) ([]domain.CollectionField, int64, error) {
+	return s.scanStore.GetFieldsByScanPaginated(ctx, scanID, offset, limit)
 }
 
 func (s *ScannerService) GetCandidateFields(ctx context.Context, scanID string) ([]domain.CollectionField, error) {

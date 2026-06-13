@@ -22,18 +22,31 @@ const autoApproveThreshold = 0.7
 const uniquenessThreshold = 0.8
 
 type DiscoveryService struct {
-	scanStore domain.ScanReader
-	relStore  domain.RelationshipReaderWriter
-	connStore domain.ConnectionReader
-	scorer    *scorer.Scorer
+	scanStore         domain.ScanReader
+	relStore          domain.RelationshipReaderWriter
+	connStore         domain.ConnectionReader
+	scorer            *scorer.Scorer
+	batchSize         int
+	batchDelay        time.Duration
 }
 
 func NewDiscoveryService(scanStore *pg.ScanStore, relStore *pg.RelationshipStore, connStore *pg.ConnectionStore) *DiscoveryService {
 	return &DiscoveryService{
-		scanStore: scanStore,
-		relStore:  relStore,
-		connStore: connStore,
-		scorer:    scorer.NewScorer(),
+		scanStore:  scanStore,
+		relStore:   relStore,
+		connStore:  connStore,
+		scorer:     scorer.NewScorer(),
+		batchSize:  50,
+		batchDelay: 100 * time.Millisecond,
+	}
+}
+
+func (s *DiscoveryService) SetRateLimit(batchSize int, delayMs int) {
+	if batchSize > 0 {
+		s.batchSize = batchSize
+	}
+	if delayMs >= 0 {
+		s.batchDelay = time.Duration(delayMs) * time.Millisecond
 	}
 }
 
@@ -84,6 +97,7 @@ func (s *DiscoveryService) DiscoverRelationships(ctx context.Context, scanID str
 
 	log.Printf("discovery: %d candidates, %d unique target fields across collections", len(candidates), len(uniqueTargets))
 
+	queryCount := 0
 	for _, candidate := range candidates {
 		uniqueVals := uniqueNonEmpty(candidate.SampleValues)
 		if len(uniqueVals) == 0 {
@@ -103,6 +117,11 @@ func (s *DiscoveryService) DiscoverRelationships(ctx context.Context, scanID str
 			matched, sampled := queryMatchCount(ctx, db, target.Collection, target.FieldName, uniqueVals)
 			if sampled == 0 {
 				continue
+			}
+
+			queryCount++
+			if s.batchSize > 0 && queryCount%s.batchSize == 0 {
+				time.Sleep(s.batchDelay)
 			}
 
 			params := scorer.ScoreParams{
@@ -145,13 +164,17 @@ func (s *DiscoveryService) DiscoverRelationships(ctx context.Context, scanID str
 				Explanation:      s.scorer.FormatExplanation(result),
 			}
 
-			if err := s.relStore.Create(ctx, rel); err != nil {
+			created, err := s.relStore.CreateOrSkip(ctx, rel)
+			if err != nil {
 				log.Printf("warning: failed to create relationship %s.%s → %s.%s: %v",
 					candidate.CollectionName, candidate.FieldName, target.Collection, target.FieldName, err)
-			} else {
+			} else if created {
 				log.Printf("discovered: %s.%s → %s.%s (%.1f%%, %d/%d) [%s]",
 					candidate.CollectionName, candidate.FieldName, target.Collection, target.FieldName,
 					result.Confidence*100, matched, sampled, status)
+			} else {
+				log.Printf("skipped duplicate: %s.%s → %s.%s",
+					candidate.CollectionName, candidate.FieldName, target.Collection, target.FieldName)
 			}
 		}
 	}

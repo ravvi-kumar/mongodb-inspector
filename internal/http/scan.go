@@ -1,22 +1,26 @@
 package http
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/ravikumar/mongodb-inspector/internal/domain"
 	"github.com/ravikumar/mongodb-inspector/internal/service"
+	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
 	"github.com/ravikumar/mongodb-inspector/internal/worker"
 )
 
 type ScanHandler struct {
 	scannerSvc *service.ScannerService
 	worker     *worker.ScannerWorker
+	relStore   *pg.RelationshipStore
+	orphanStore *pg.OrphanStore
 }
 
-func NewScanHandler(scannerSvc *service.ScannerService, worker *worker.ScannerWorker) *ScanHandler {
-	return &ScanHandler{scannerSvc: scannerSvc, worker: worker}
+func NewScanHandler(scannerSvc *service.ScannerService, worker *worker.ScannerWorker, relStore *pg.RelationshipStore, orphanStore *pg.OrphanStore) *ScanHandler {
+	return &ScanHandler{scannerSvc: scannerSvc, worker: worker, relStore: relStore, orphanStore: orphanStore}
 }
 
 func (h *ScanHandler) Routes() chi.Router {
@@ -27,6 +31,7 @@ func (h *ScanHandler) Routes() chi.Router {
 	r.Get("/{id}", h.GetScan)
 	r.Get("/{id}/fields", h.GetFields)
 	r.Get("/{id}/candidates", h.GetCandidates)
+	r.Get("/{id}/summary", h.GetSummary)
 
 	return r
 }
@@ -71,7 +76,9 @@ func (h *ScanHandler) ListScans(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scans, err := h.scannerSvc.ListScans(r.Context(), connectionID)
+	offset, limit := parsePagination(r)
+
+	scans, total, err := h.scannerSvc.ListScansPaginated(r.Context(), connectionID, offset, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -79,7 +86,12 @@ func (h *ScanHandler) ListScans(w http.ResponseWriter, r *http.Request) {
 	if scans == nil {
 		scans = []domain.Scan{}
 	}
-	writeJSON(w, http.StatusOK, scans)
+	writeJSON(w, http.StatusOK, domain.PaginatedResponse{
+		Data:   scans,
+		Total:  int(total),
+		Offset: offset,
+		Limit:  limit,
+	})
 }
 
 func (h *ScanHandler) GetScan(w http.ResponseWriter, r *http.Request) {
@@ -94,7 +106,9 @@ func (h *ScanHandler) GetScan(w http.ResponseWriter, r *http.Request) {
 
 func (h *ScanHandler) GetFields(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	fields, err := h.scannerSvc.GetScanFields(r.Context(), id)
+	offset, limit := parsePagination(r)
+
+	fields, total, err := h.scannerSvc.GetScanFieldsPaginated(r.Context(), id, offset, limit)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -102,7 +116,12 @@ func (h *ScanHandler) GetFields(w http.ResponseWriter, r *http.Request) {
 	if fields == nil {
 		fields = []domain.CollectionField{}
 	}
-	writeJSON(w, http.StatusOK, fields)
+	writeJSON(w, http.StatusOK, domain.PaginatedResponse{
+		Data:   fields,
+		Total:  int(total),
+		Offset: offset,
+		Limit:  limit,
+	})
 }
 
 func (h *ScanHandler) GetCandidates(w http.ResponseWriter, r *http.Request) {
@@ -116,4 +135,55 @@ func (h *ScanHandler) GetCandidates(w http.ResponseWriter, r *http.Request) {
 		fields = []domain.CollectionField{}
 	}
 	writeJSON(w, http.StatusOK, fields)
+}
+
+func (h *ScanHandler) GetSummary(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	scan, err := h.scannerSvc.GetScan(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "scan not found")
+		return
+	}
+
+	fields, err := h.scannerSvc.GetScanFields(r.Context(), id)
+	if err != nil {
+		log.Printf("get scan fields error for %s: %v", id, err)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	candidates, err := h.scannerSvc.GetCandidateFields(r.Context(), id)
+	if err != nil {
+		log.Printf("get candidate fields error for %s: %v", id, err)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	totalFields := len(fields)
+	totalCandidates := len(candidates)
+
+	connectionID := scan.ConnectionID
+	rels, err := h.relStore.List(r.Context(), connectionID, nil)
+	if err != nil {
+		log.Printf("list relationships error for %s: %v", connectionID, err)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	totalRelationships := len(rels)
+
+	orphans, err := h.orphanStore.ListByConnection(r.Context(), connectionID)
+	if err != nil {
+		log.Printf("list orphans error for %s: %v", connectionID, err)
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	totalOrphans := len(orphans)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"scan_id":             id,
+		"status":              scan.Status,
+		"total_fields":        totalFields,
+		"total_candidates":    totalCandidates,
+		"total_relationships": totalRelationships,
+		"total_orphans":       totalOrphans,
+	})
 }

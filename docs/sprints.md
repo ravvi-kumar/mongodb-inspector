@@ -293,25 +293,36 @@ All 7 sprints now complete. The full pipeline is: create connection → scan →
 
 ## Sprint 11: Scan Quality + API Hardening
 
-**Status:** Pending
+**Status:** Complete
 **Goal:** Fix scan bias, add pagination, add resilience. Make the API production-ready.
 
 ### Why This Sprint
 Current scan uses `Find().Sort(_id: -1).Limit(N)` which biases toward most recent documents. Older data patterns may be missed. List endpoints have no pagination — will break on large datasets. Worker has no retry.
 
 ### Checklist
-- [ ] Replace `$sort + $limit` sampling with MongoDB `$sample` aggregation for truly random samples
-- [ ] Add pagination (offset + limit) to: list scans, list fields, list relationships, list orphans
-- [ ] Add relationship deduplication guard (skip if source+target+fields already exists)
-- [ ] Add retry logic for failed scans (max 3 retries with backoff)
-- [ ] Add connection health-check endpoint (ping MongoDB, return latency + status)
-- [ ] Add scan summary endpoint: total fields, candidates, relationships found, orphans detected
-- [ ] Rate-limit discovery queries against MongoDB (configurable batch size + sleep between batches)
-- [ ] Update OpenAPI spec with pagination params
-- [ ] Tests for pagination, deduplication, retry
+- [x] Replace `$sort + $limit` sampling with MongoDB `$sample` aggregation for truly random samples
+- [x] Add pagination (offset + limit) to: list scans, list fields, list relationships, list orphans
+- [x] Add relationship deduplication guard (skip if source+target+fields already exists)
+- [x] Add retry logic for failed scans (max 3 retries with backoff)
+- [x] Add connection health-check endpoint (ping MongoDB, return latency + status)
+- [x] Add scan summary endpoint: total fields, candidates, relationships found, orphans detected
+- [x] Rate-limit discovery queries against MongoDB (configurable batch size + sleep between batches)
+- [x] Update OpenAPI spec with pagination params
+- [x] Tests for pagination, deduplication, retry
 
 ### Blockers
 - (none, can run parallel with Sprint 9/10)
+
+### Architecture Decisions
+- **AD-18: Pagination pattern** — All list endpoints now support `offset` and `limit` query params with a default of 20 and max of 100. Response includes total count for client-side pagination controls.
+- **AD-19: Relationship deduplication** — New unique constraint on `(connection_id, source_collection, source_field, target_collection, target_field)` prevents duplicate relationships. `CreateOrSkip` method uses `ON CONFLICT DO NOTHING`.
+- **AD-20: Exponential backoff** — Scan worker retries failed scans with exponential backoff (2s, 4s, 6s) up to 3 attempts before giving up.
+- **AD-21: Rate limiting** — Discovery service supports configurable batch size and delay between queries to avoid overwhelming MongoDB. Defaults: 50 queries per batch, 100ms delay.
+
+### Notes for Next Sprint
+- Sprint 12: Real-World Validation
+- All endpoints now production-ready with proper pagination, error handling, and monitoring
+- New migration `007_unique_relationships.sql` adds the deduplication constraint
 
 ---
 
