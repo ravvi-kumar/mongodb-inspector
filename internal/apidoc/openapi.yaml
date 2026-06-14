@@ -237,12 +237,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-         "502":
-           description: Cannot connect to MongoDB
-           content:
-             application/json:
+        "502":
+          description: Cannot connect to MongoDB
+          content:
+            application/json:
               schema:
-                 $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Error"
 
   /api/connections/{id}/stats:
     get:
@@ -555,12 +555,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Relationship"
-         "404":
-           description: Not found
-           content:
-             application/json:
+        "404":
+          description: Not found
+          content:
+            application/json:
               schema:
-                 $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Error"
 
   /api/relationships/{id}/trace:
     get:
@@ -745,12 +745,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaginatedResponse"
-         "400":
-           description: Missing connection_id
-           content:
-             application/json:
+        "400":
+          description: Missing connection_id
+          content:
+            application/json:
               schema:
-                 $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Error"
 
   /api/investigate/batch:
     post:
@@ -805,7 +805,7 @@ paths:
           content:
             application/json:
               schema:
-                 $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Error"
 
   /api/orphans/{id}/investigate:
     get:
@@ -833,15 +833,15 @@ paths:
           content:
             application/json:
               schema:
-                 $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Error"
         "500":
           description: Investigation failed
           content:
             application/json:
               schema:
-                 $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/Error"
 
- components:
+components:
   parameters:
     ConnectionID:
       name: id

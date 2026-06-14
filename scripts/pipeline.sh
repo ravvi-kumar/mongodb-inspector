@@ -67,7 +67,8 @@ echo ""
 echo "=== Relationships ==="
 curl -sf "$API/api/relationships?connection_id=$conn_id" | python3 -c "
 import sys, json
-rels = json.load(sys.stdin)
+response = json.load(sys.stdin)
+rels = response['data']
 approved = [r for r in rels if r['status'] == 'approved']
 suggested = [r for r in rels if r['status'] == 'suggested']
 print(f'  Approved: {len(approved)}  Suggested: {len(suggested)}')

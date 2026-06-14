@@ -396,10 +396,156 @@ Current investigation returns a raw tree. For a frontend or tool to render a use
 
 ---
 
+## Sprint 14: Frontend Foundation + Connection Wizard
+
+**Status:** In Progress
+**Goal:** TanStack Start setup, connection management, first-time onboarding
+
+### Checklist
+- [x] TanStack Start + TypeScript + Tailwind setup
+- [x] shadcn/ui component library integration
+- [x] API client from OpenAPI spec (orval/openapi-typescript)
+- [x] Connection list page (all connections, health status)
+- [x] Connection create/edit form with validation
+- [x] Test connection button (show latency, status)
+- [x] First-time welcome/onboarding wizard
+  - Step 1: Welcome message + value prop
+  - Step 2: Add MongoDB connection
+  - Step 3: Select database
+  - Step 4: Start first scan
+- [ ] Mobile-responsive layout
+- [ ] Error boundaries + loading states
+- [x] Build + typecheck
+
+### Blockers
+- (none)
+
+### Notes for Next Sprint
+- Sprint 15: Scan progress dashboard
+- Backend API endpoints ready: `/api/connections/*`, `/api/connections/:id/health`
+- Design system with database-inspired palette (copper, blues, ambers)
+- Typography: Space Grotesk + Inter pairing
+- Mobile responsiveness in progress
+
+---
+
+## Sprint 15: Scan Progress Dashboard
+
+**Status:** Pending
+**Goal:** Real-time scan monitoring, clear completion flow
+
+### Checklist
+- [ ] Scan trigger page (collection checkboxes, "Start Scan" button)
+- [ ] Real-time progress polling (scan status, fields found)
+- [ ] Big progress indicator with percentage
+- [ ] Live field count updates during scan
+- [ ] Scan completion notification (toast/banner)
+- [ ] "View Results" prominent CTA
+- [ ] Scan history page (past scans, status, timestamps)
+- [ ] Scan summary card (total fields, candidates, relationships, orphans)
+- [ ] Mobile-optimized progress view
+- [ ] Error handling + retry for failed scans
+- [ ] Build + typecheck
+
+### Blockers
+- Depends on Sprint 14
+
+### Notes for Next Sprint
+- Sprint 16: Relationship explorer with plain-English UX
+- Backend API endpoints ready: `/api/scans/*`, `/api/connections/:id/stats`
+
+---
+
+## Sprint 16: Relationship Explorer (Non-Technical UX)
+
+**Status:** Pending
+**Goal:** Simple relationship management, hide technical details
+
+### Checklist
+- [ ] Relationship list page with pagination
+- [ ] Card-based relationship display (not table rows)
+- [ ] Confidence bars (low/med/high) instead of raw scores
+- [ ] One-click approve/reject buttons
+- [ ] Bulk approve (high-confidence threshold toggle)
+- [ ] Search/filter by collection name
+- [ ] Plain-English explanations (hide "value_overlap: 0.87", show "87% of values match")
+- [ ] Relationship detail view (full explanation, field paths)
+- [ ] "Auto-approve high-confidence" button
+- [ ] Mobile-responsive cards
+- [ ] Build + typecheck
+
+### Blockers
+- Depends on Sprint 14, 15
+
+### Notes for Next Sprint
+- Sprint 17: Interactive graph investigation
+- Backend API endpoints ready: `/api/relationships/*`, `/api/connections/:id/schema-map`
+
+---
+
+## Sprint 17: Graph Investigation
+
+**Status:** Pending
+**Goal:** Interactive graph as primary view, click-to-investigate
+
+### Checklist
+- [ ] React Flow integration
+- [ ] Graph view as default, toggle to list view
+- [ ] Schema map rendering (nodes=collections, edges=relationships)
+- [ ] Zoom/pan controls
+- [ ] Click node → expand/collapse relationships
+- [ ] Click edge → show relationship details
+- [ ] Search document ID input
+- [ ] Document investigation with graph highlight
+  - Show path from document to all related docs
+  - Bidirectional traversal visualization
+  - Relationship labels on edges
+  - Collection metadata on nodes
+- [ ] Mobile-optimized graph (touch controls)
+- [ ] Filter by collection name or relationship type
+- [ ] Build + typecheck
+
+### Blockers
+- Depends on Sprint 14, 15, 16
+
+### Notes for Next Sprint
+- Sprint 18: Orphan report + one-click fix
+- Backend API endpoints ready: `/api/investigate/*`, `/api/relationships/:id/trace`
+
+---
+
+## Sprint 18: Orphan Report
+
+**Status:** Pending
+**Goal:** Visual orphan list, one-click investigation
+
+### Checklist
+- [ ] Orphan list page with pagination
+- [ ] Orphan cards showing:
+  - Source collection + document ID
+  - Broken relationship (which field, target collection)
+  - Severity indicator (high/med/low based on confidence)
+- [ ] One-click "Investigate" button (opens investigation for source doc)
+- [ ] Orphan summary dashboard (total orphans, by collection)
+- [ ] Bulk investigation (select multiple orphans)
+- [ ] "Fix orphan" guidance (what the relationship should be)
+- [ ] Mobile-responsive orphan cards
+- [ ] Error handling for missing documents
+- [ ] Build + typecheck + end-to-end test
+
+### Blockers
+- Depends on Sprint 14, 15, 16, 17
+
+### Notes for Next Sprint
+- Frontend MVP complete
+- Ready for user testing and feedback
+
+---
+
 ## Post-Sprint Planning Questions
 
-1. **Frontend?** Sprints 8-13 are all backend. When does a frontend enter the picture? Is this API-first (others build UIs) or does the project need its own UI?
-2. **Auth?** Zero authentication on any endpoint. Is this always single-user / localhost, or does multi-user auth need to happen?
+1. **Frontend?** Sprints 8-13 are all backend. When does a frontend enter the picture? Is this API-first (others build UIs) or does the project need its own UI? **→ Sprint 14-18: TanStack Start frontend**
+2. **Auth?** Zero authentication on any endpoint. Is this always single-user / localhost, or does multi-user auth need to happen? **→ No auth for now**
 3. **Persistence strategy?** Currently every scan creates new records. Should old scans be archived/cleaned? What's the data retention model?
 4. **MongoDB write safety?** All operations are read-only against MongoDB. Should we keep it that way, or will future features need to write (e.g., fix orphans)?
 5. **Performance ceiling?** Discovery does N_candidates × N_collections queries against MongoDB. At what scale does this become a problem? Should we add async discovery?
