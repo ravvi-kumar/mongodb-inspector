@@ -12,8 +12,8 @@ import (
 )
 
 type ScannerService struct {
-	scanStore    *pg.ScanStore
-	connStore    *pg.ConnectionStore
+	scanStore *pg.ScanStore
+	connStore *pg.ConnectionStore
 }
 
 func NewScannerService(scanStore *pg.ScanStore, connStore *pg.ConnectionStore) *ScannerService {

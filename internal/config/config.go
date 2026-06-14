@@ -7,8 +7,8 @@ import (
 )
 
 type Config struct {
-	DatabaseURL string
-	Port        string
+	DatabaseURL        string
+	Port               string
 	DiscoveryBatchSize int
 	DiscoveryDelayMs   int
 }

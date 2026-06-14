@@ -16,13 +16,14 @@ import (
 )
 
 type OrphanService struct {
-	connStore   domain.ConnectionReader
-	relStore    domain.RelationshipReaderWriter
-	orphanStore domain.OrphanReaderWriter
+	connStore     domain.ConnectionReader
+	relStore      domain.RelationshipReaderWriter
+	orphanStore   domain.OrphanReaderWriter
+	investigation *InvestigationService
 }
 
-func NewOrphanService(connStore *pg.ConnectionStore, relStore *pg.RelationshipStore, orphanStore *pg.OrphanStore) *OrphanService {
-	return &OrphanService{connStore: connStore, relStore: relStore, orphanStore: orphanStore}
+func NewOrphanService(connStore *pg.ConnectionStore, relStore *pg.RelationshipStore, orphanStore *pg.OrphanStore, investigation *InvestigationService) *OrphanService {
+	return &OrphanService{connStore: connStore, relStore: relStore, orphanStore: orphanStore, investigation: investigation}
 }
 
 func (s *OrphanService) DetectOrphans(ctx context.Context, connectionID string) ([]domain.Orphan, error) {
@@ -206,4 +207,18 @@ func (s *OrphanService) ListOrphans(ctx context.Context, connectionID string) ([
 
 func (s *OrphanService) ListOrphansPaginated(ctx context.Context, connectionID string, offset, limit int) ([]domain.Orphan, int64, error) {
 	return s.orphanStore.ListByConnectionPaginated(ctx, connectionID, offset, limit)
+}
+
+func (s *OrphanService) InvestigateOrphan(ctx context.Context, orphanID string) (*domain.InvestigateResult, error) {
+	orphan, err := s.orphanStore.Get(ctx, orphanID)
+	if err != nil {
+		return nil, fmt.Errorf("get orphan: %w", err)
+	}
+
+	rel, err := s.relStore.Get(ctx, orphan.RelationshipID)
+	if err != nil {
+		return nil, fmt.Errorf("get relationship: %w", err)
+	}
+
+	return s.investigation.Investigate(ctx, rel.ConnectionID, orphan.MissingValue)
 }

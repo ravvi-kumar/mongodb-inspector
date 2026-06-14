@@ -22,22 +22,24 @@ const autoApproveThreshold = 0.7
 const uniquenessThreshold = 0.8
 
 type DiscoveryService struct {
-	scanStore         domain.ScanReader
-	relStore          domain.RelationshipReaderWriter
-	connStore         domain.ConnectionReader
-	scorer            *scorer.Scorer
-	batchSize         int
-	batchDelay        time.Duration
+	scanStore     domain.ScanReader
+	relStore      domain.RelationshipReaderWriter
+	connStore     domain.ConnectionReader
+	investigation *InvestigationService
+	scorer        *scorer.Scorer
+	batchSize     int
+	batchDelay    time.Duration
 }
 
-func NewDiscoveryService(scanStore *pg.ScanStore, relStore *pg.RelationshipStore, connStore *pg.ConnectionStore) *DiscoveryService {
+func NewDiscoveryService(scanStore *pg.ScanStore, relStore *pg.RelationshipStore, connStore *pg.ConnectionStore, investigation *InvestigationService) *DiscoveryService {
 	return &DiscoveryService{
-		scanStore:  scanStore,
-		relStore:   relStore,
-		connStore:  connStore,
-		scorer:     scorer.NewScorer(),
-		batchSize:  50,
-		batchDelay: 100 * time.Millisecond,
+		scanStore:     scanStore,
+		relStore:      relStore,
+		connStore:     connStore,
+		investigation: investigation,
+		scorer:        scorer.NewScorer(),
+		batchSize:     50,
+		batchDelay:    100 * time.Millisecond,
 	}
 }
 
@@ -51,9 +53,9 @@ func (s *DiscoveryService) SetRateLimit(batchSize int, delayMs int) {
 }
 
 type uniqueField struct {
-	Collection    string
-	FieldName     string
-	FieldType     string
+	Collection      string
+	FieldName       string
+	FieldType       string
 	UniquenessRatio float64
 }
 
@@ -414,4 +416,8 @@ func valueToString(v any) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+func (s *DiscoveryService) TraceRelationship(ctx context.Context, relationshipID string, limit int) (*domain.RelationshipTrace, error) {
+	return s.investigation.TraceRelationship(ctx, relationshipID, limit)
 }

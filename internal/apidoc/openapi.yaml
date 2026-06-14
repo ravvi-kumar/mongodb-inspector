@@ -237,8 +237,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "502":
-          description: Cannot connect to MongoDB
+         "502":
+           description: Cannot connect to MongoDB
+           content:
+             application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+
+  /api/connections/{id}/stats:
+    get:
+      summary: Get connection statistics
+      description: >
+        Returns collection count, field count, relationship count, and orphan count
+        for a connection
+      tags: [connections]
+      parameters:
+        - $ref: "#/components/parameters/ConnectionID"
+      responses:
+        "200":
+          description: Connection statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionStats"
+        "404":
+          description: Connection not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -526,12 +555,94 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Relationship"
-        "404":
-          description: Not found
+         "404":
+           description: Not found
+           content:
+             application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+
+  /api/relationships/{id}/trace:
+    get:
+      summary: Trace a relationship forward/backward
+      description: >
+        Returns sample documents from both sides of a relationship to help
+        understand the relationship structure
+      tags: [relationships]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Relationship trace with forward and reverse documents
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: "#/components/schemas/RelationshipTrace"
+        "404":
+          description: Relationship not found
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+        "500":
+          description: Trace failed
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+
+  /api/relationships/search:
+    get:
+      summary: Search relationships by collection
+      description: >
+        Find all relationships (both source and target) for a specific collection
+      tags: [relationships]
+      parameters:
+        - name: connection_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: collection
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Relationships for the collection
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Relationship"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+        "500":
+          description: Search failed
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
 
   /api/investigate:
     post:
@@ -634,14 +745,103 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaginatedResponse"
+         "400":
+           description: Missing connection_id
+           content:
+             application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+
+  /api/investigate/batch:
+    post:
+      summary: Batch investigate multiple documents
+      description: >
+        Investigates multiple document IDs at once. Maximum 50 documents per request.
+        Returns a map of document IDs to investigation results.
+      tags: [investigation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchInvestigateRequest"
+      responses:
+        "200":
+          description: Batch investigation results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchInvestigateResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+
+  /api/investigate/schema-map:
+    get:
+      summary: Get schema map for a connection
+      description: >
+        Returns all approved relationships as a graph with nodes (collections) and edges (relationships).
+        Useful for visualizing the data model.
+      tags: [investigation]
+      parameters:
+        - name: connection_id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Schema map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SchemaMap"
         "400":
           description: Missing connection_id
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                 $ref: "#/components/schemas/Error"
 
-components:
+  /api/orphans/{id}/investigate:
+    get:
+      summary: Investigate an orphan's source document
+      description: >
+        Investigates the document that contains the missing reference that caused this orphan.
+        Useful for understanding why the orphan exists.
+      tags: [orphans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Investigation result for the orphan's source document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestigateResult"
+        "404":
+          description: Orphan not found
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+        "500":
+          description: Investigation failed
+          content:
+            application/json:
+              schema:
+                 $ref: "#/components/schemas/Error"
+
+ components:
   parameters:
     ConnectionID:
       name: id
@@ -894,7 +1094,6 @@ components:
           type: string
           description: The document _id to trace (string or ObjectID hex)
           example: "573a1390f29313caabcd416f"
-
     InvestigateResult:
       type: object
       properties:
@@ -906,6 +1105,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FlatDocument"
+        metadata:
+          $ref: "#/components/schemas/CollectionMetadata"
 
     InvestigationNode:
       type: object
@@ -926,6 +1127,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/InvestigationNode"
+        metadata:
+          type: object
+          properties:
+            depth:
+              type: integer
+              example: 2
+            sibling_count:
+              type: integer
+              example: 3
+            relationship_label:
+              type: string
+              example: "has _id in orders"
 
     FlatDocument:
       type: object
@@ -960,3 +1173,126 @@ components:
         created_at:
           type: string
           format: date-time
+
+    ConnectionStats:
+      type: object
+      properties:
+        connection_id:
+          type: string
+          format: uuid
+        collection_count:
+          type: integer
+          example: 5
+        field_count:
+          type: integer
+          example: 45
+        relationship_count:
+          type: integer
+          example: 8
+        orphan_count:
+          type: integer
+          example: 2
+
+    RelationshipTrace:
+      type: object
+      properties:
+        relationship_id:
+          type: string
+          format: uuid
+        source_collection:
+          type: string
+          example: users
+        source_field:
+          type: string
+          example: _id
+        target_collection:
+          type: string
+          example: orders
+        target_field:
+          type: string
+          example: user_id
+        forward_docs:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlatDocument"
+        reverse_docs:
+          type: array
+          items:
+            $ref: "#/components/schemas/FlatDocument"
+
+    BatchInvestigateRequest:
+      type: object
+      required: [connection_id, document_ids]
+      properties:
+        connection_id:
+          type: string
+          format: uuid
+        document_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          maxItems: 50
+
+    BatchInvestigateResult:
+      type: object
+      properties:
+        results:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/InvestigateResult"
+
+    SchemaMap:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaNode"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaEdge"
+
+    SchemaNode:
+      type: object
+      properties:
+        collection:
+          type: string
+          example: users
+        field_count:
+          type: integer
+          example: 12
+
+    SchemaEdge:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_collection:
+          type: string
+          example: users
+        source_field:
+          type: string
+          example: _id
+        target_collection:
+          type: string
+          example: orders
+        target_field:
+          type: string
+          example: user_id
+        confidence:
+          type: number
+          format: float
+          example: 0.95
+
+    CollectionMetadata:
+      type: object
+      properties:
+        document_count:
+          type: integer
+          example: 1000
+        field_count:
+          type: integer
+          example: 25

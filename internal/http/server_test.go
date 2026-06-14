@@ -168,9 +168,9 @@ func TestDecodeJSON_InvalidJSON(t *testing.T) {
 
 func TestInvestigateHandler_MissingFields(t *testing.T) {
 	tests := []struct {
-		name        string
-		body        string
-		wantStatus  int
+		name       string
+		body       string
+		wantStatus int
 	}{
 		{"missing connection_id", `{"document_id":"123"}`, http.StatusBadRequest},
 		{"missing document_id", `{"connection_id":"abc"}`, http.StatusBadRequest},

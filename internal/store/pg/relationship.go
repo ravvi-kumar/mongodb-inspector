@@ -67,6 +67,9 @@ func (s *RelationshipStore) Get(ctx context.Context, id string) (*domain.Relatio
 		 FROM relationships WHERE id = $1`, id,
 	).Scan(&r.ID, &r.ConnectionID, &r.SourceCollection, &r.SourceField, &r.TargetCollection, &r.TargetField, &r.Confidence, &r.MatchedValues, &r.SampledValues, &status, &r.Explanation, &r.CreatedAt, &r.UpdatedAt)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("relationship not found: %s", id)
+		}
 		return nil, fmt.Errorf("get relationship: %w", err)
 	}
 	r.Status = domain.RelationshipStatus(status)
@@ -165,4 +168,30 @@ func (s *RelationshipStore) DeleteByConnection(ctx context.Context, connectionID
 	_, err := s.db.ExecContext(ctx,
 		`DELETE FROM relationships WHERE connection_id = $1`, connectionID)
 	return err
+}
+
+func (s *RelationshipStore) SearchByCollection(ctx context.Context, connectionID string, collectionName string) ([]domain.Relationship, error) {
+	query := `SELECT id, connection_id, source_collection, source_field, target_collection, target_field, confidence, matched_values, sampled_values, status, explanation, created_at, updated_at
+			  FROM relationships 
+			  WHERE connection_id = $1 
+			  AND (source_collection = $2 OR target_collection = $2)
+			  ORDER BY confidence DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, connectionID, collectionName)
+	if err != nil {
+		return nil, fmt.Errorf("search relationships: %w", err)
+	}
+	defer rows.Close()
+
+	var rels []domain.Relationship
+	for rows.Next() {
+		var r domain.Relationship
+		var status string
+		if err := rows.Scan(&r.ID, &r.ConnectionID, &r.SourceCollection, &r.SourceField, &r.TargetCollection, &r.TargetField, &r.Confidence, &r.MatchedValues, &r.SampledValues, &status, &r.Explanation, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan relationship: %w", err)
+		}
+		r.Status = domain.RelationshipStatus(status)
+		rels = append(rels, r)
+	}
+	return rels, rows.Err()
 }

@@ -2,6 +2,8 @@ package pg
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/ravikumar/mongodb-inspector/internal/domain"
@@ -98,4 +100,19 @@ func (s *OrphanStore) DeleteByConnection(ctx context.Context, connectionID strin
 		`DELETE FROM orphans o USING relationships r
 		 WHERE r.id = o.relationship_id AND r.connection_id = $1`, connectionID)
 	return err
+}
+
+func (s *OrphanStore) Get(ctx context.Context, id string) (*domain.Orphan, error) {
+	var o domain.Orphan
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, relationship_id, source_collection, source_field, missing_value, created_at
+		 FROM orphans WHERE id = $1`, id,
+	).Scan(&o.ID, &o.RelationshipID, &o.SourceCollection, &o.SourceField, &o.MissingValue, &o.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("orphan not found: %s", id)
+		}
+		return nil, fmt.Errorf("get orphan: %w", err)
+	}
+	return &o, nil
 }

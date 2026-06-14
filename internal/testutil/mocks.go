@@ -34,6 +34,22 @@ func (m *MockConnectionStore) Get(ctx context.Context, id string) (*domain.Conne
 	return c, nil
 }
 
+func (m *MockConnectionStore) GetConnectionStats(ctx context.Context, connectionID string) (*domain.ConnectionStats, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	_, ok := m.data[connectionID]
+	if !ok {
+		return nil, fmt.Errorf("connection not found: %s", connectionID)
+	}
+	return &domain.ConnectionStats{
+		ConnectionID:      connectionID,
+		CollectionCount:   0,
+		FieldCount:        0,
+		RelationshipCount: 0,
+		OrphanCount:       0,
+	}, nil
+}
+
 type MockScanStore struct {
 	mu         sync.RWMutex
 	scans      map[string]*domain.Scan
@@ -86,8 +102,8 @@ func (m *MockScanStore) GetFieldsByScan(ctx context.Context, scanID string) ([]d
 }
 
 type MockRelationshipStore struct {
-	mu    sync.RWMutex
-	rels  map[string]*domain.Relationship
+	mu           sync.RWMutex
+	rels         map[string]*domain.Relationship
 	connIDByScan map[string]string
 }
 
@@ -127,6 +143,16 @@ func (m *MockRelationshipStore) CreateOrSkip(ctx context.Context, r *domain.Rela
 	}
 	m.rels[r.ID] = r
 	return true, nil
+}
+
+func (m *MockRelationshipStore) Get(ctx context.Context, id string) (*domain.Relationship, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	rel, ok := m.rels[id]
+	if !ok {
+		return nil, fmt.Errorf("relationship not found: %s", id)
+	}
+	return rel, nil
 }
 
 func (m *MockRelationshipStore) List(ctx context.Context, connectionID string, statusFilter *string) ([]domain.Relationship, error) {
@@ -182,6 +208,18 @@ func (m *MockRelationshipStore) GetByScanConnection(ctx context.Context, scanID 
 	return connID, nil
 }
 
+func (m *MockRelationshipStore) SearchByCollection(ctx context.Context, connectionID string, collectionName string) ([]domain.Relationship, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var result []domain.Relationship
+	for _, r := range m.rels {
+		if r.ConnectionID == connectionID && (r.SourceCollection == collectionName || r.TargetCollection == collectionName) {
+			result = append(result, *r)
+		}
+	}
+	return result, nil
+}
+
 type MockOrphanStore struct {
 	mu      sync.RWMutex
 	orphans []domain.Orphan
@@ -224,4 +262,15 @@ func (m *MockOrphanStore) ListByConnectionPaginated(ctx context.Context, connect
 		result = result[offset:]
 	}
 	return result, total, nil
+}
+
+func (m *MockOrphanStore) Get(ctx context.Context, id string) (*domain.Orphan, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, orphan := range m.orphans {
+		if orphan.ID == id {
+			return &orphan, nil
+		}
+	}
+	return nil, fmt.Errorf("orphan not found: %s", id)
 }

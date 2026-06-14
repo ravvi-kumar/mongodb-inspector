@@ -9,27 +9,27 @@ import (
 )
 
 var (
-	camelCaseIDRe    = regexp.MustCompile(`[Ii]d$`)
-	snakeCaseIDRe     = regexp.MustCompile(`_id$`)
-	refRe             = regexp.MustCompile(`(?i)(ref|reference)$`)
-	endsWithByRe      = regexp.MustCompile(`(?i)(by|By)$`)
-	hexObjectIDRe     = regexp.MustCompile(`^[a-f0-9]{24}$`)
+	camelCaseIDRe = regexp.MustCompile(`[Ii]d$`)
+	snakeCaseIDRe = regexp.MustCompile(`_id$`)
+	refRe         = regexp.MustCompile(`(?i)(ref|reference)$`)
+	endsWithByRe  = regexp.MustCompile(`(?i)(by|By)$`)
+	hexObjectIDRe = regexp.MustCompile(`^[a-f0-9]{24}$`)
 )
 
 var commonRefNames = map[string]bool{
-	"customer":  true,
-	"owner":     true,
-	"author":    true,
-	"parent":    true,
-	"user":      true,
-	"creator":   true,
-	"assignee":  true,
-	"approver":  true,
-	"reviewer":  true,
-	"manager":   true,
-	"admin":     true,
-	"member":    true,
-	"reporter":  true,
+	"customer":   true,
+	"owner":      true,
+	"author":     true,
+	"parent":     true,
+	"user":       true,
+	"creator":    true,
+	"assignee":   true,
+	"approver":   true,
+	"reviewer":   true,
+	"manager":    true,
+	"admin":      true,
+	"member":     true,
+	"reporter":   true,
 	"subscriber": true,
 }
 

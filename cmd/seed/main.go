@@ -86,12 +86,13 @@ func bulkInsert(ctx context.Context, coll *mongo.Collection, docs []any) {
 
 // ==================== ECOMMERCE ====================
 // Expected relationships:
-//   orders.userId → users._id
-//   orders.items.productId → products._id
-//   reviews.userId → users._id
-//   reviews.productId → products._id
-//   payments.orderId → orders._id
-//   shipments.orderId → orders._id
+//
+//	orders.userId → users._id
+//	orders.items.productId → products._id
+//	reviews.userId → users._id
+//	reviews.productId → products._id
+//	payments.orderId → orders._id
+//	shipments.orderId → orders._id
 func seedEcommerce(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	userIDs := oids(200)
 	productIDs := oids(100)
@@ -109,9 +110,9 @@ func seedEcommerce(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	products := make([]any, len(productIDs))
 	for i, id := range productIDs {
 		products[i] = bsonM{
-			"_id":    id,
-			"name":   fmt.Sprintf("Product %d", i),
-			"price":  float64(rng.Intn(10000)) / 100,
+			"_id":      id,
+			"name":     fmt.Sprintf("Product %d", i),
+			"price":    float64(rng.Intn(10000)) / 100,
 			"category": []string{"electronics", "clothing", "food", "books", "toys"}[rng.Intn(5)],
 		}
 	}
@@ -119,7 +120,7 @@ func seedEcommerce(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 
 	type orderItem struct {
 		ProductID primitive.ObjectID `bson:"productId"`
-		Qty      int                 `bson:"qty"`
+		Qty       int                `bson:"qty"`
 	}
 
 	orderIDs := oids(500)
@@ -131,11 +132,11 @@ func seedEcommerce(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 			items[j] = orderItem{ProductID: pick(rng, productIDs), Qty: rng.Intn(5) + 1}
 		}
 		orders[i] = bsonM{
-			"_id":     id,
-			"userId":  pick(rng, userIDs),
-			"items":   items,
-			"total":   float64(rng.Intn(50000)) / 100,
-			"status":  []string{"pending", "shipped", "delivered", "cancelled"}[rng.Intn(4)],
+			"_id":    id,
+			"userId": pick(rng, userIDs),
+			"items":  items,
+			"total":  float64(rng.Intn(50000)) / 100,
+			"status": []string{"pending", "shipped", "delivered", "cancelled"}[rng.Intn(4)],
 		}
 	}
 	bulkInsert(ctx, db.Collection("orders"), orders)
@@ -143,11 +144,11 @@ func seedEcommerce(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	reviews := make([]any, 300)
 	for i := range reviews {
 		reviews[i] = bsonM{
-			"_id":        newOID(),
-			"userId":     pick(rng, userIDs),
-			"productId":  pick(rng, productIDs),
-			"rating":     rng.Intn(5) + 1,
-			"comment":    fmt.Sprintf("Review %d", i),
+			"_id":       newOID(),
+			"userId":    pick(rng, userIDs),
+			"productId": pick(rng, productIDs),
+			"rating":    rng.Intn(5) + 1,
+			"comment":   fmt.Sprintf("Review %d", i),
 		}
 	}
 	bulkInsert(ctx, db.Collection("reviews"), reviews)
@@ -199,12 +200,13 @@ func seedEcommerce(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 
 // ==================== SAAS ====================
 // Expected relationships:
-//   projects.organizationId → organizations._id
-//   users.organizationId → organizations._id
-//   invoices.organizationId → organizations._id
-//   webhooks.organizationId → organizations._id
-//   events.userId → users._id
-//   events.projectId → projects._id
+//
+//	projects.organizationId → organizations._id
+//	users.organizationId → organizations._id
+//	invoices.organizationId → organizations._id
+//	webhooks.organizationId → organizations._id
+//	events.userId → users._id
+//	events.projectId → projects._id
 func seedSaaS(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	orgIDs := oids(20)
 	userIDs := oids(100)
@@ -213,9 +215,9 @@ func seedSaaS(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	orgs := make([]any, len(orgIDs))
 	for i, id := range orgIDs {
 		orgs[i] = bsonM{
-			"_id":   id,
-			"name":  fmt.Sprintf("Org %d", i),
-			"plan":  []string{"free", "starter", "pro", "enterprise"}[rng.Intn(4)],
+			"_id":    id,
+			"name":   fmt.Sprintf("Org %d", i),
+			"plan":   []string{"free", "starter", "pro", "enterprise"}[rng.Intn(4)],
 			"active": rng.Intn(10) > 1,
 		}
 	}
@@ -281,11 +283,12 @@ func seedSaaS(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 
 // ==================== BLOG ====================
 // Expected relationships:
-//   posts.authorId → authors._id
-//   comments.postId → posts._id
-//   comments.authorId → authors._id
-//   post_tags.tagId → tags._id
-//   post_tags.postId → posts._id
+//
+//	posts.authorId → authors._id
+//	comments.postId → posts._id
+//	comments.authorId → authors._id
+//	post_tags.tagId → tags._id
+//	post_tags.postId → posts._id
 func seedBlog(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	authorIDs := oids(30)
 	postIDs := oids(150)
@@ -317,11 +320,11 @@ func seedBlog(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	comments := make([]any, 500)
 	for i := range comments {
 		comments[i] = bsonM{
-			"_id":       newOID(),
-			"postId":    pick(rng, postIDs),
-			"authorId":  pick(rng, authorIDs),
-			"body":      fmt.Sprintf("Comment %d", i),
-			"approved":  rng.Intn(10) > 2,
+			"_id":      newOID(),
+			"postId":   pick(rng, postIDs),
+			"authorId": pick(rng, authorIDs),
+			"body":     fmt.Sprintf("Comment %d", i),
+			"approved": rng.Intn(10) > 2,
 		}
 	}
 	bulkInsert(ctx, db.Collection("comments"), comments)
@@ -358,9 +361,10 @@ func seedBlog(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 
 // ==================== ANALYTICS ====================
 // Expected relationships:
-//   events.sessionId → sessions._id
-//   sessions.userId → users._id
-//   campaigns.userId → users._id
+//
+//	events.sessionId → sessions._id
+//	sessions.userId → users._id
+//	campaigns.userId → users._id
 func seedAnalytics(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	userIDs := oids(500)
 	sessionIDs := oids(1000)
@@ -368,11 +372,11 @@ func seedAnalytics(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	users := make([]any, len(userIDs))
 	for i, id := range userIDs {
 		users[i] = bsonM{
-			"_id":       id,
-			"name":      fmt.Sprintf("Visitor %d", i),
-			"email":     fmt.Sprintf("visitor%d@analytics.com", i),
-			"country":   []string{"US", "UK", "DE", "FR", "JP", "IN"}[rng.Intn(6)],
-			"signedUp":  rng.Intn(10) > 3,
+			"_id":      id,
+			"name":     fmt.Sprintf("Visitor %d", i),
+			"email":    fmt.Sprintf("visitor%d@analytics.com", i),
+			"country":  []string{"US", "UK", "DE", "FR", "JP", "IN"}[rng.Intn(6)],
+			"signedUp": rng.Intn(10) > 3,
 		}
 	}
 	bulkInsert(ctx, db.Collection("users"), users)
@@ -404,10 +408,10 @@ func seedAnalytics(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	campaigns := make([]any, 200)
 	for i := range campaigns {
 		campaigns[i] = bsonM{
-			"_id":    newOID(),
-			"userId": pick(rng, userIDs),
-			"source": []string{"google", "facebook", "twitter", "email", "direct"}[rng.Intn(5)],
-			"medium": []string{"cpc", "organic", "referral", "email"}[rng.Intn(4)],
+			"_id":       newOID(),
+			"userId":    pick(rng, userIDs),
+			"source":    []string{"google", "facebook", "twitter", "email", "direct"}[rng.Intn(5)],
+			"medium":    []string{"cpc", "organic", "referral", "email"}[rng.Intn(4)],
 			"converted": rng.Intn(10) > 6,
 		}
 	}
@@ -416,15 +420,16 @@ func seedAnalytics(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 
 // ==================== CRM ====================
 // Expected relationships:
-//   contacts.companyId → companies._id
-//   deals.companyId → companies._id
-//   deals.contactId → contacts._id
-//   deals.ownerId → users._id
-//   activities.contactId → contacts._id
-//   activities.dealId → deals._id
-//   activities.userId → users._id
-//   notes.contactId → contacts._id
-//   notes.userId → users._id
+//
+//	contacts.companyId → companies._id
+//	deals.companyId → companies._id
+//	deals.contactId → contacts._id
+//	deals.ownerId → users._id
+//	activities.contactId → contacts._id
+//	activities.dealId → deals._id
+//	activities.userId → users._id
+//	notes.contactId → contacts._id
+//	notes.userId → users._id
 func seedCRM(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	companyIDs := oids(50)
 	userIDs := oids(20)
@@ -434,10 +439,10 @@ func seedCRM(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	companies := make([]any, len(companyIDs))
 	for i, id := range companyIDs {
 		companies[i] = bsonM{
-			"_id":     id,
-			"name":    fmt.Sprintf("Company %d Inc.", i),
+			"_id":      id,
+			"name":     fmt.Sprintf("Company %d Inc.", i),
 			"industry": []string{"tech", "finance", "healthcare", "retail", "education"}[rng.Intn(5)],
-			"size":    []string{"small", "medium", "large", "enterprise"}[rng.Intn(4)],
+			"size":     []string{"small", "medium", "large", "enterprise"}[rng.Intn(4)],
 		}
 	}
 	bulkInsert(ctx, db.Collection("companies"), companies)
@@ -456,11 +461,11 @@ func seedCRM(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	contacts := make([]any, len(contactIDs))
 	for i, id := range contactIDs {
 		contacts[i] = bsonM{
-			"_id":        id,
-			"companyId":  pick(rng, companyIDs),
-			"name":       fmt.Sprintf("Contact %d", i),
-			"email":      fmt.Sprintf("contact%d@company.com", i),
-			"phone":      fmt.Sprintf("+1-555-%04d", rng.Intn(10000)),
+			"_id":       id,
+			"companyId": pick(rng, companyIDs),
+			"name":      fmt.Sprintf("Contact %d", i),
+			"email":     fmt.Sprintf("contact%d@company.com", i),
+			"phone":     fmt.Sprintf("+1-555-%04d", rng.Intn(10000)),
 		}
 	}
 	bulkInsert(ctx, db.Collection("contacts"), contacts)
@@ -468,13 +473,13 @@ func seedCRM(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	deals := make([]any, len(dealIDs))
 	for i, id := range dealIDs {
 		deals[i] = bsonM{
-			"_id":        id,
-			"companyId":  pick(rng, companyIDs),
-			"contactId":  pick(rng, contactIDs),
-			"ownerId":    pick(rng, userIDs),
-			"title":      fmt.Sprintf("Deal %d", i),
-			"value":      float64(rng.Intn(500000)) / 100,
-			"stage":      []string{"lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"}[rng.Intn(6)],
+			"_id":       id,
+			"companyId": pick(rng, companyIDs),
+			"contactId": pick(rng, contactIDs),
+			"ownerId":   pick(rng, userIDs),
+			"title":     fmt.Sprintf("Deal %d", i),
+			"value":     float64(rng.Intn(500000)) / 100,
+			"stage":     []string{"lead", "qualified", "proposal", "negotiation", "closed_won", "closed_lost"}[rng.Intn(6)],
 		}
 	}
 	bulkInsert(ctx, db.Collection("deals"), deals)
@@ -482,13 +487,13 @@ func seedCRM(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	activities := make([]any, 1000)
 	for i := range activities {
 		activities[i] = bsonM{
-			"_id":        newOID(),
-			"contactId":  pick(rng, contactIDs),
-			"dealId":     pick(rng, dealIDs),
-			"userId":     pick(rng, userIDs),
-			"type":       []string{"call", "email", "meeting", "note"}[rng.Intn(4)],
-			"notes":      fmt.Sprintf("Activity %d notes", i),
-			"timestamp":  time.Now().Add(-time.Duration(rng.Intn(86400*30)) * time.Second),
+			"_id":       newOID(),
+			"contactId": pick(rng, contactIDs),
+			"dealId":    pick(rng, dealIDs),
+			"userId":    pick(rng, userIDs),
+			"type":      []string{"call", "email", "meeting", "note"}[rng.Intn(4)],
+			"notes":     fmt.Sprintf("Activity %d notes", i),
+			"timestamp": time.Now().Add(-time.Duration(rng.Intn(86400*30)) * time.Second),
 		}
 	}
 	bulkInsert(ctx, db.Collection("activities"), activities)
@@ -496,11 +501,11 @@ func seedCRM(ctx context.Context, db *mongo.Database, rng *rand.Rand) {
 	notes := make([]any, 300)
 	for i := range notes {
 		notes[i] = bsonM{
-			"_id":        newOID(),
-			"contactId":  pick(rng, contactIDs),
-			"userId":     pick(rng, userIDs),
-			"body":       fmt.Sprintf("Note %d about this contact", i),
-			"created":    time.Now().Add(-time.Duration(rng.Intn(86400*30)) * time.Second),
+			"_id":       newOID(),
+			"contactId": pick(rng, contactIDs),
+			"userId":    pick(rng, userIDs),
+			"body":      fmt.Sprintf("Note %d about this contact", i),
+			"created":   time.Now().Add(-time.Duration(rng.Intn(86400*30)) * time.Second),
 		}
 	}
 	bulkInsert(ctx, db.Collection("notes"), notes)

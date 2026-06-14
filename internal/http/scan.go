@@ -13,9 +13,9 @@ import (
 )
 
 type ScanHandler struct {
-	scannerSvc *service.ScannerService
-	worker     *worker.ScannerWorker
-	relStore   *pg.RelationshipStore
+	scannerSvc  *service.ScannerService
+	worker      *worker.ScannerWorker
+	relStore    *pg.RelationshipStore
 	orphanStore *pg.OrphanStore
 }
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/ravikumar/mongodb-inspector/internal/domain"
 	"github.com/ravikumar/mongodb-inspector/internal/service"
 )
 
@@ -20,6 +21,8 @@ func (h *InvestigationHandler) Routes() chi.Router {
 	r := chi.NewRouter()
 
 	r.Post("/", h.Investigate)
+	r.Post("/batch", h.BatchInvestigate)
+	r.Get("/schema-map", h.SchemaMap)
 
 	return r
 }
@@ -52,4 +55,49 @@ func (h *InvestigationHandler) Investigate(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *InvestigationHandler) BatchInvestigate(w http.ResponseWriter, r *http.Request) {
+	var req domain.BatchInvestigateRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if req.ConnectionID == "" {
+		writeError(w, http.StatusBadRequest, "connection_id is required")
+		return
+	}
+	if len(req.DocumentIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "document_ids is required and must not be empty")
+		return
+	}
+	if len(req.DocumentIDs) > 50 {
+		writeError(w, http.StatusBadRequest, "document_ids cannot exceed 50 documents")
+		return
+	}
+
+	result, err := h.service.BatchInvestigate(r.Context(), req.ConnectionID, req.DocumentIDs)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (h *InvestigationHandler) SchemaMap(w http.ResponseWriter, r *http.Request) {
+	connectionID := r.URL.Query().Get("connection_id")
+	if connectionID == "" {
+		writeError(w, http.StatusBadRequest, "connection_id query param is required")
+		return
+	}
+
+	schemaMap, err := h.service.GetSchemaMap(r.Context(), connectionID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, schemaMap)
 }

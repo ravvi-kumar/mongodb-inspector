@@ -6,11 +6,11 @@ import (
 
 func TestScoreValueOverlap(t *testing.T) {
 	tests := []struct {
-		name     string
-		matched  int
-		sampled  int
-		wantMin  float64
-		wantMax  float64
+		name    string
+		matched int
+		sampled int
+		wantMin float64
+		wantMax float64
 	}{
 		{"perfect", 10, 10, 1.0, 1.0},
 		{"half", 5, 10, 0.5, 0.5},

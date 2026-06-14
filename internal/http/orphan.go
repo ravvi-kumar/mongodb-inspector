@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -22,6 +23,7 @@ func (h *OrphanHandler) Routes() chi.Router {
 
 	r.Post("/detect", h.Detect)
 	r.Get("/", h.List)
+	r.Get("/{id}/investigate", h.Investigate)
 
 	return r
 }
@@ -78,4 +80,20 @@ func (h *OrphanHandler) List(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 		Limit:  limit,
 	})
+}
+
+func (h *OrphanHandler) Investigate(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	result, err := h.service.InvestigateOrphan(r.Context(), id)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, result)
 }

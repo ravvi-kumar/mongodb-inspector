@@ -20,8 +20,8 @@ type ExpectedRel struct {
 }
 
 type Dataset struct {
-	Name string
-	DB   string
+	Name     string
+	DB       string
 	Expected []ExpectedRel
 }
 

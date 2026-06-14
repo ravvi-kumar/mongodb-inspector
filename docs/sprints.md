@@ -361,28 +361,38 @@ The LLM's best suggestion: "That experiment will tell you more about the future 
 
 ## Sprint 13: Investigation UX + API Polish
 
-**Status:** Pending
+**Status:** Complete
 **Goal:** Make investigation results useful for API consumers. Add stats, summaries, graph-friendly output.
 
 ### Why This Sprint
 Current investigation returns a raw tree. For a frontend or tool to render a useful graph, it needs more: relationship metadata, collection stats, graph-layout hints. Also need a way to explore "what references this document?" without knowing the ID first.
 
 ### Checklist
-- [ ] Add `GET /api/connections/:id/stats` — collection count, field count, relationship count, orphan count
-- [ ] Add `GET /api/relationships/:id/trace` — trace a specific relationship forward/backward
-- [ ] Enhance investigate response with:
+- [x] Add `GET /api/connections/:id/stats` — collection count, field count, relationship count, orphan count
+- [x] Add `GET /api/relationships/:id/trace` — trace a specific relationship forward/backward
+- [x] Enhance investigate response with:
   - Collection-level metadata (doc count, field count)
   - Relationship labels (not just raw field names)
   - Graph-layout hints (depth, sibling count)
-- [ ] Add `POST /api/investigate/batch` — investigate multiple document IDs at once
-- [ ] Add `GET /api/orphans/:id/investigate` — investigate an orphan's source document
-- [ ] Add `GET /api/connections/:id/schema-map` — return all approved relationships as a graph (nodes=collections, edges=relationships)
-- [ ] Add relationship search/filter by collection name
-- [ ] Update OpenAPI spec
-- [ ] Tests for new endpoints
+- [x] Add `POST /api/investigate/batch` — investigate multiple document IDs at once
+- [x] Add `GET /api/orphans/:id/investigate` — investigate an orphan's source document
+- [x] Add `GET /api/connections/:id/schema-map` — return all approved relationships as a graph (nodes=collections, edges=relationships)
+- [x] Add relationship search/filter by collection name
+- [x] Update OpenAPI spec
+- [x] Tests for new endpoints
 
 ### Blockers
 - (none, but benefits from Sprint 12 results)
+
+### Architecture Decisions
+- **AD-22: Enhanced investigation metadata** — Added collection metadata (document count, field count) and node metadata (depth, sibling count, relationship labels) to help UI render graphs more effectively.
+- **AD-23: Batch investigation with limits** — Batch investigate supports up to 50 documents per request to prevent performance issues while still enabling bulk operations.
+- **AD-24: Schema map as graph structure** — Approved relationships returned as nodes (collections) and edges (relationships) for easy consumption by graph visualization libraries.
+
+### Notes for Next Sprint
+- Sprint 13 complete — all UX and API polish features implemented
+- API now fully documented with OpenAPI spec including all new endpoints
+- All existing tests pass, mock stores updated to support new interface methods
 
 ---
 

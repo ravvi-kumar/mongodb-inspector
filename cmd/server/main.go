@@ -63,10 +63,10 @@ func main() {
 	orphanStore := pg.NewOrphanStore(store.DB())
 
 	scannerSvc := service.NewScannerService(scanStore, connStore)
-	discoverySvc := service.NewDiscoveryService(scanStore, relStore, connStore)
+	investigationSvc := service.NewInvestigationService(connStore, relStore, orphanStore)
+	discoverySvc := service.NewDiscoveryService(scanStore, relStore, connStore, investigationSvc)
 	discoverySvc.SetRateLimit(cfg.DiscoveryBatchSize, cfg.DiscoveryDelayMs)
-	investigationSvc := service.NewInvestigationService(connStore, relStore)
-	orphanSvc := service.NewOrphanService(connStore, relStore, orphanStore)
+	orphanSvc := service.NewOrphanService(connStore, relStore, orphanStore, investigationSvc)
 	scannerWorker := worker.NewScannerWorker(scannerSvc)
 	scannerWorker.Start()
 	defer scannerWorker.Stop()

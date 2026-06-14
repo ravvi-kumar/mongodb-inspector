@@ -2,14 +2,15 @@ package http
 
 import (
 	"context"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/ravikumar/mongodb-inspector/internal/domain"
-	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
 	mongostore "github.com/ravikumar/mongodb-inspector/internal/store/mongo"
-	"net/http"
+	"github.com/ravikumar/mongodb-inspector/internal/store/pg"
 )
 
 type ConnectionHandler struct {
@@ -31,6 +32,7 @@ func (h *ConnectionHandler) Routes() chi.Router {
 	r.Post("/{id}/select-db", h.SelectDatabase)
 	r.Get("/{id}/collections", h.ListCollections)
 	r.Get("/{id}/health", h.HealthCheck)
+	r.Get("/{id}/stats", h.Stats)
 
 	return r
 }
@@ -220,4 +222,18 @@ func (h *ConnectionHandler) HealthCheck(w http.ResponseWriter, r *http.Request) 
 		"latency":  latency.Milliseconds(),
 		"database": conn.Database,
 	})
+}
+
+func (h *ConnectionHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	stats, err := h.connStore.GetConnectionStats(r.Context(), id)
+	if err != nil {
+		if strings.Contains(err.Error(), "connection not found") {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
 }

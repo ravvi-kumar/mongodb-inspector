@@ -21,10 +21,10 @@ func TestDiscoverRelationships_NoCandidates(t *testing.T) {
 	}
 
 	mockConn.Add(&domain.Connection{
-		ID:             "conn-1",
-		Name:           "test",
+		ID:               "conn-1",
+		Name:             "test",
 		ConnectionString: "mongodb://localhost",
-		Database:       "testdb",
+		Database:         "testdb",
 	})
 
 	mockScan.AddScan(&domain.Scan{

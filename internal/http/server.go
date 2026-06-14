@@ -22,13 +22,13 @@ const scalarHTML = `<!DOCTYPE html>
 </html>`
 
 type Server struct {
-	router                chi.Router
-	connectionHandler     *ConnectionHandler
-	scanHandler           *ScanHandler
-	relationshipHandler   *RelationshipHandler
-	investigationHandler  *InvestigationHandler
-	orphanHandler         *OrphanHandler
-	swaggerJSON           json.RawMessage
+	router               chi.Router
+	connectionHandler    *ConnectionHandler
+	scanHandler          *ScanHandler
+	relationshipHandler  *RelationshipHandler
+	investigationHandler *InvestigationHandler
+	orphanHandler        *OrphanHandler
+	swaggerJSON          json.RawMessage
 }
 
 func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, relationshipHandler *RelationshipHandler, investigationHandler *InvestigationHandler, orphanHandler *OrphanHandler, swaggerJSON json.RawMessage) *Server {

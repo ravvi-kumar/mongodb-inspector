@@ -138,7 +138,7 @@ func TestExtractFields_MixedTypes(t *testing.T) {
 func TestExtractFields_NestedObjects(t *testing.T) {
 	docs := []bson.M{
 		{
-			"_id": "1",
+			"_id":      "1",
 			"customer": bson.M{"id": "usr_1", "name": "Alice"},
 			"metadata": bson.M{"createdBy": "admin", "version": 2},
 		},

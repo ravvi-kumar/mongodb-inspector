@@ -1,7 +1,9 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -27,6 +29,8 @@ func (h *RelationshipHandler) Routes() chi.Router {
 	r.Get("/{id}", h.Get)
 	r.Post("/{id}/approve", h.Approve)
 	r.Post("/{id}/reject", h.Reject)
+	r.Get("/{id}/trace", h.Trace)
+	r.Get("/search", h.Search)
 
 	return r
 }
@@ -116,6 +120,55 @@ func (h *RelationshipHandler) Discover(w http.ResponseWriter, r *http.Request) {
 
 	statusFilter := string(domain.RelationshipStatusSuggested)
 	rels, _ := h.relStore.List(r.Context(), connectionID, &statusFilter)
+	if rels == nil {
+		rels = []domain.Relationship{}
+	}
+
+	writeJSON(w, http.StatusOK, rels)
+}
+
+func (h *RelationshipHandler) Trace(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	limit := 10
+	if l := r.URL.Query().Get("limit"); l != "" {
+		var parsed int
+		if _, err := fmt.Sscanf(l, "%d", &parsed); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	trace, err := h.discovery.TraceRelationship(r.Context(), id, limit)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, trace)
+}
+
+func (h *RelationshipHandler) Search(w http.ResponseWriter, r *http.Request) {
+	connectionID := r.URL.Query().Get("connection_id")
+	if connectionID == "" {
+		writeError(w, http.StatusBadRequest, "connection_id query param is required")
+		return
+	}
+
+	collectionName := r.URL.Query().Get("collection")
+	if collectionName == "" {
+		writeError(w, http.StatusBadRequest, "collection query param is required")
+		return
+	}
+
+	rels, err := h.relStore.SearchByCollection(r.Context(), connectionID, collectionName)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	if rels == nil {
 		rels = []domain.Relationship{}
 	}
