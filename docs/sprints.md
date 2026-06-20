@@ -398,24 +398,24 @@ Current investigation returns a raw tree. For a frontend or tool to render a use
 
 ## Sprint 14: Frontend Foundation + Connection Wizard
 
-**Status:** In Progress
-**Goal:** TanStack Start setup, connection management, first-time onboarding
+**Status:** Pending
+**Goal:** React + Vite + TypeScript setup, connection management, first-time onboarding
 
 ### Checklist
-- [x] TanStack Start + TypeScript + Tailwind setup
-- [x] shadcn/ui component library integration
-- [x] API client from OpenAPI spec (orval/openapi-typescript)
-- [x] Connection list page (all connections, health status)
-- [x] Connection create/edit form with validation
-- [x] Test connection button (show latency, status)
-- [x] First-time welcome/onboarding wizard
+- [ ] Vite + React + TypeScript + Tailwind CSS setup
+- [ ] Component library integration (shadcn/ui or similar)
+- [ ] API client from OpenAPI spec (openapi-typescript + fetch)
+- [ ] Connection list page (all connections, health status)
+- [ ] Connection create/edit form with validation
+- [ ] Test connection button (show latency, status)
+- [ ] First-time welcome/onboarding wizard
   - Step 1: Welcome message + value prop
   - Step 2: Add MongoDB connection
   - Step 3: Select database
   - Step 4: Start first scan
 - [ ] Mobile-responsive layout
 - [ ] Error boundaries + loading states
-- [x] Build + typecheck
+- [ ] Build + typecheck
 
 ### Blockers
 - (none)
@@ -423,9 +423,8 @@ Current investigation returns a raw tree. For a frontend or tool to render a use
 ### Notes for Next Sprint
 - Sprint 15: Scan progress dashboard
 - Backend API endpoints ready: `/api/connections/*`, `/api/connections/:id/health`
-- Design system with database-inspired palette (copper, blues, ambers)
-- Typography: Space Grotesk + Inter pairing
-- Mobile responsiveness in progress
+- Simple stack: Vite + React + TypeScript + Tailwind CSS
+- No complex routing - can start with hash routing or simple page-based routing
 
 ---
 
