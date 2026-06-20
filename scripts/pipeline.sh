@@ -56,11 +56,8 @@ done
 cand_count=$(curl -sf "$API/api/scans/$scan_id/candidates" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
 echo "      Found $cand_count candidate fields"
 
-# Discover relationships
-curl -sf -X POST "$API/api/relationships/discover" \
-  -H "Content-Type: application/json" \
-  -d "{\"scan_id\":\"$scan_id\"}" > /dev/null
-echo "[4/6] Discovery complete"
+# Auto-discovery runs automatically after scan completes, just wait a moment
+sleep 2
 
 # List relationships
 echo ""

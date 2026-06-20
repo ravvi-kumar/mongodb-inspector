@@ -398,24 +398,21 @@ Current investigation returns a raw tree. For a frontend or tool to render a use
 
 ## Sprint 14: Frontend Foundation + Connection Wizard
 
-**Status:** Pending
+**Status:** Complete
 **Goal:** React + Vite + TypeScript setup, connection management, first-time onboarding
 
 ### Checklist
-- [ ] Vite + React + TypeScript + Tailwind CSS setup
-- [ ] Component library integration (shadcn/ui or similar)
-- [ ] API client from OpenAPI spec (openapi-typescript + fetch)
-- [ ] Connection list page (all connections, health status)
-- [ ] Connection create/edit form with validation
-- [ ] Test connection button (show latency, status)
-- [ ] First-time welcome/onboarding wizard
-  - Step 1: Welcome message + value prop
-  - Step 2: Add MongoDB connection
-  - Step 3: Select database
-  - Step 4: Start first scan
-- [ ] Mobile-responsive layout
-- [ ] Error boundaries + loading states
-- [ ] Build + typecheck
+- [x] Vite + React + TypeScript + Tailwind CSS setup
+- [x] Component library integration (shadcn/ui)
+- [x] API client from OpenAPI spec (openapi-typescript + fetch)
+- [x] React Router with createBrowserRouter setup
+- [x] Connection list page (all connections, health status)
+- [x] Connection create/edit form with validation
+- [x] Test connection button (show latency, status)
+- [x] First-time welcome/onboarding wizard
+- [x] Mobile-responsive layout
+- [x] Error boundaries + loading states
+- [x] Build + typecheck
 
 ### Blockers
 - (none)
@@ -423,35 +420,46 @@ Current investigation returns a raw tree. For a frontend or tool to render a use
 ### Notes for Next Sprint
 - Sprint 15: Scan progress dashboard
 - Backend API endpoints ready: `/api/connections/*`, `/api/connections/:id/health`
-- Simple stack: Vite + React + TypeScript + Tailwind CSS
-- No complex routing - can start with hash routing or simple page-based routing
+- React Router configured with proper route structure:
+  - `/onboarding` - First-time user flow
+  - `/` - Main layout with sidebar navigation
+  - `/connections` - Connection list
+  - `/connections/new` - Add new connection
+  - Placeholder routes for scans, investigation, orphans
 
 ---
 
 ## Sprint 15: Scan Progress Dashboard
 
-**Status:** Pending
+**Status:** Complete
 **Goal:** Real-time scan monitoring, clear completion flow
 
 ### Checklist
-- [ ] Scan trigger page (collection checkboxes, "Start Scan" button)
-- [ ] Real-time progress polling (scan status, fields found)
-- [ ] Big progress indicator with percentage
-- [ ] Live field count updates during scan
-- [ ] Scan completion notification (toast/banner)
-- [ ] "View Results" prominent CTA
-- [ ] Scan history page (past scans, status, timestamps)
-- [ ] Scan summary card (total fields, candidates, relationships, orphans)
-- [ ] Mobile-optimized progress view
-- [ ] Error handling + retry for failed scans
-- [ ] Build + typecheck
+- [x] Connection details page with stats
+- [x] Real-time progress polling (1-2 second intervals)
+- [x] Big progress indicator with percentage
+- [x] Live field count updates during scan
+- [x] Scan completion notification with summary card
+- [x] "View Results" prominent CTA
+- [x] Scan history page (past scans, status, timestamps)
+- [x] Scan summary card (total fields, candidates, relationships, orphans)
+- [x] Mobile-optimized progress view
+- [x] Error handling for failed scans
+- [x] Build + typecheck
 
 ### Blockers
-- Depends on Sprint 14
+- (none)
+
+### Architecture Decisions
+- **AD-25: Real-time polling with useScanPolling hook** — Custom React hook polls scan status every 1.5 seconds, stops automatically on completion/failure, and provides callbacks for success/error states.
+- **AD-26: Progress estimation** — Since backend doesn't provide percentage, estimated progress based on field count vs expected total (assumes ~5 fields per collection on average).
+- **AD-27: Navigation flow** — Connections list → Connection details → Start scan → Live progress → Results page → Next steps (relationships/investigation/orphans).
+- **AD-28: Error handling** — Scan failures show error messages prominently with retry capability. Network errors handled gracefully with user-friendly messages.
 
 ### Notes for Next Sprint
-- Sprint 16: Relationship explorer with plain-English UX
-- Backend API endpoints ready: `/api/scans/*`, `/api/connections/:id/stats`
+- Sprint 16: Relationship Explorer with plain-English UX
+- Backend API endpoints ready: `/api/relationships/*`, `/api/scans/{id}/candidates`
+- Scan flow working end-to-end: connection → scan → progress → results
 
 ---
 

@@ -12,12 +12,13 @@ import (
 )
 
 type ScannerService struct {
-	scanStore *pg.ScanStore
-	connStore *pg.ConnectionStore
+	scanStore   *pg.ScanStore
+	connStore   *pg.ConnectionStore
+	discovery   *DiscoveryService
 }
 
-func NewScannerService(scanStore *pg.ScanStore, connStore *pg.ConnectionStore) *ScannerService {
-	return &ScannerService{scanStore: scanStore, connStore: connStore}
+func NewScannerService(scanStore *pg.ScanStore, connStore *pg.ConnectionStore, discovery *DiscoveryService) *ScannerService {
+	return &ScannerService{scanStore: scanStore, connStore: connStore, discovery: discovery}
 }
 
 func (s *ScannerService) StartScan(ctx context.Context, connectionID string, sampleSize int) (*domain.Scan, error) {
@@ -111,6 +112,16 @@ func (s *ScannerService) RunScan(ctx context.Context, scanID string) error {
 	}
 
 	log.Printf("scan %s completed", scanID)
+
+	if s.discovery != nil {
+		log.Printf("starting auto-discovery for scan %s", scanID)
+		if err := s.discovery.DiscoverRelationships(ctx, scanID); err != nil {
+			log.Printf("auto-discovery warning for scan %s: %v", scanID, err)
+		} else {
+			log.Printf("auto-discovery completed for scan %s", scanID)
+		}
+	}
+
 	return nil
 }
 
