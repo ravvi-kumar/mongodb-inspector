@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 const scalarHTML = `<!DOCTYPE html>
@@ -42,6 +43,16 @@ func NewServer(connectionHandler *ConnectionHandler, scanHandler *ScanHandler, r
 	}
 
 	r := chi.NewRouter()
+
+	// CORS middleware
+	r.Use(cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000", "http://127.0.0.1:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}).Handler)
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
